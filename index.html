@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOSUN — Song Feedback</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAF9F6; --card: #FFFFFF; --text: #1A1A1A; --muted: #7A7A72;
+  --hint: #A8A89E; --border: rgba(0,0,0,0.08); --accent: #1D9E75;
+  --sel-bg: #E1F5EE; --sel-text: #085041; --sel-border: #5DCAA5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413; --card: #1E1E1C; --text: #EAEAE6; --muted: #9E9E96;
+    --hint: #6A6A62; --border: rgba(255,255,255,0.08); --accent: #9FE1CB;
+    --sel-bg: #085041; --sel-text: #9FE1CB; --sel-border: #1D9E75;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Instrument Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+.container { max-width: 560px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }
+.sub { font-family: 'Newsreader', serif; font-style: italic; font-size: 14px; color: var(--muted); margin-bottom: 2.5rem; }
+.section { margin-bottom: 2rem; }
+.section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px; }
+.q { margin-bottom: 1.5rem; }
+.q-text { font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+.options { display: flex; gap: 6px; flex-wrap: wrap; }
+.opt {
+  font-size: 13px; font-weight: 500; padding: 5px 18px; border-radius: 100px;
+  cursor: pointer; border: 1px solid var(--border); background: transparent;
+  color: var(--muted); transition: all 0.15s; font-family: 'Instrument Sans', system-ui, sans-serif;
+}
+.opt:hover { border-color: var(--muted); }
+.opt.selected { background: var(--sel-bg); color: var(--sel-text); border-color: var(--sel-border); }
+.emoji-row { display: flex; gap: 8px; }
+.emoji-opt {
+  width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; font-size: 22px; display: flex;
+  align-items: center; justify-content: center; transition: all 0.15s;
+}
+.emoji-opt:hover { border-color: var(--muted); transform: scale(1.08); }
+.emoji-opt.selected { background: var(--sel-bg); border-color: var(--sel-border); transform: scale(1.1); }
+.scale-row { display: flex; gap: 6px; }
+.scale-opt {
+  flex: 1; padding: 8px 0; text-align: center; font-size: 14px; font-weight: 500;
+  border-radius: 8px; border: 1px solid var(--border); background: transparent;
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+}
+.scale-opt:hover { border-color: var(--muted); }
+.scale-opt.selected { background: var(--sel-bg); color: var(--sel-text); border-color: var(--sel-border); }
+.scale-labels { display: flex; justify-content: space-between; margin-top: 4px; }
+.scale-labels span { font-size: 11px; color: var(--hint); }
+textarea, .text-input {
+  width: 100%; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 14px;
+  padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  color: var(--text); outline: none; transition: border-color 0.2s;
+}
+textarea { resize: vertical; min-height: 80px; }
+textarea:focus, .text-input:focus { border-color: var(--accent); }
+textarea::placeholder, .text-input::placeholder { color: var(--hint); }
+.submit-btn {
+  display: block; width: 100%; padding: 14px; margin-top: 2rem;
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-size: 15px; font-weight: 600; border: none; border-radius: 100px;
+  cursor: pointer; background: var(--text); color: var(--bg); transition: opacity 0.15s;
+}
+.submit-btn:hover { opacity: 0.85; }
+.submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.error-msg { color: #E24B4A; font-size: 13px; margin-top: 1rem; display: none; text-align: center; }
+.thanks { text-align: center; padding: 4rem 1rem; }
+.thanks h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.thanks p { font-family: 'Newsreader', serif; font-style: italic; color: var(--muted); font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="container" id="formView">
+  <h1>Song feedback</h1>
+  <p class="sub">Takes 60 seconds. Be honest — it helps more than being nice.</p>
+
+  <div class="section">
+    <div class="section-label">About you</div>
+    <div class="q">
+      <div class="q-text">Your name (optional)</div>
+      <input type="text" class="text-input" id="f_name" placeholder="Anonymous is fine" />
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">The song</div>
+    <div class="q">
+      <div class="q-text">Which song are you listening to?</div>
+      <div class="options" data-field="song">
+        <button class="opt" data-v="Fly High">Fly High</button>
+        <button class="opt" data-v="BASSLINE">BASSLINE</button>
+        <button class="opt" data-v="Afraid of the Light">Afraid of the Light</button>
+        <button class="opt" data-v="TELL ME WHY">TELL ME WHY</button>
+        <button class="opt" data-v="I ENVY U">I ENVY U</button>
+        <button class="opt" data-v="Root">Root</button>
+        <button class="opt" data-v="你不是我">你不是我</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">First impression</div>
+    <div class="q">
+      <div class="q-text">How did the song make you feel?</div>
+      <div class="emoji-row" data-field="reaction">
+        <button class="emoji-opt" data-v="Fire" title="Fire">&#x1F525;</button>
+        <button class="emoji-opt" data-v="Vibing" title="Vibing">&#x1F60C;</button>
+        <button class="emoji-opt" data-v="Meh" title="Meh">&#x1F611;</button>
+        <button class="emoji-opt" data-v="Confused" title="Confused">&#x1F615;</button>
+        <button class="emoji-opt" data-v="Skip" title="Skip">&#x23ED;&#xFE0F;</button>
+      </div>
+    </div>
+    <div class="q">
+      <div class="q-text">How catchy is the hook?</div>
+      <div class="scale-row" data-field="hook">
+        <button class="scale-opt" data-v="1">1</button>
+        <button class="scale-opt" data-v="2">2</button>
+        <button class="scale-opt" data-v="3">3</button>
+        <button class="scale-opt" data-v="4">4</button>
+        <button class="scale-opt" data-v="5">5</button>
+      </div>
+      <div class="scale-labels"><span>Forgettable</span><span>Stuck in my head</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Deeper take</div>
+    <div class="q">
+      <div class="q-text">Would you add this to your playlist?</div>
+      <div class="options" data-field="playlist">
+        <button class="opt" data-v="Yes">Yes</button>
+        <button class="opt" data-v="Maybe">Maybe</button>
+        <button class="opt" data-v="Probably not">Probably not</button>
+      </div>
+    </div>
+    <div class="q">
+      <div class="q-text">Would you share this with a friend?</div>
+      <div class="options" data-field="share">
+        <button class="opt" data-v="Yes">Yes</button>
+        <button class="opt" data-v="Maybe">Maybe</button>
+        <button class="opt" data-v="Probably not">Probably not</button>
+      </div>
+    </div>
+    <div class="q">
+      <div class="q-text">Did any part feel weak or boring?</div>
+      <div class="options" data-field="weak">
+        <button class="opt" data-v="All good">All good</button>
+        <button class="opt" data-v="Some parts">Some parts</button>
+      </div>
+    </div>
+    <div class="q" id="weakDetail" style="display:none;">
+      <div class="q-text">Which part? (verse, chorus, bridge, intro...)</div>
+      <textarea id="f_weakWhere" placeholder="e.g. The second verse dragged a little..."></textarea>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Final thoughts</div>
+    <div class="q">
+      <div class="q-text">Can you hum or remember any part right now?</div>
+      <div class="options" data-field="remember">
+        <button class="opt" data-v="Yes">Yes</button>
+        <button class="opt" data-v="Not really">Not really</button>
+      </div>
+    </div>
+    <div class="q">
+      <div class="q-text">Anything else you want to say?</div>
+      <textarea id="f_freeform" placeholder="Completely optional — say whatever comes to mind."></textarea>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submitBtn">Submit feedback</button>
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<script>
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzna66pCpZfyXoKvmdRcK7itzbzALw443kknxvUWYpQoaPVdZWKIM7TDkCiD0n5LP172A/exec';
+var data = {};
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.opt, .emoji-opt, .scale-opt');
+  if (!btn) return;
+  var parent = btn.parentElement;
+  var field = parent.dataset.field;
+  if (!field) return;
+  data[field] = btn.dataset.v;
+  var siblings = parent.querySelectorAll('.opt, .emoji-opt, .scale-opt');
+  for (var i = 0; i < siblings.length; i++) siblings[i].classList.remove('selected');
+  btn.classList.add('selected');
+  if (field === 'weak') {
+    document.getElementById('weakDetail').style.display = btn.dataset.v === 'Some parts' ? 'block' : 'none';
+  }
+});
+
+document.getElementById('submitBtn').addEventListener('click', function() {
+  var required = ['song', 'reaction', 'hook', 'playlist', 'share', 'weak', 'remember'];
+  var missing = [];
+  for (var i = 0; i < required.length; i++) { if (!data[required[i]]) missing.push(required[i]); }
+  var errEl = document.getElementById('errorMsg');
+  if (missing.length > 0) {
+    errEl.textContent = 'Please answer all the required questions before submitting.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  var params = new URLSearchParams();
+  params.append('name', document.getElementById('f_name').value || 'Anonymous');
+  params.append('song', data.song);
+  params.append('reaction', data.reaction);
+  params.append('hook', data.hook + '/5');
+  params.append('playlist', data.playlist);
+  params.append('share', data.share);
+  params.append('weak', data.weak);
+  params.append('weakWhere', document.getElementById('f_weakWhere').value || '');
+  params.append('remember', data.remember);
+  params.append('comments', document.getElementById('f_freeform').value || '');
+
+  var url = SCRIPT_URL + '?' + params.toString();
+
+  fetch(url, { mode: 'no-cors' }).then(function() {
+    document.getElementById('formView').innerHTML = '<div class="thanks"><h2>Thank you!</h2><p>Your honest take means a lot.</p></div>';
+  }).catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Submit feedback';
+    errEl.textContent = 'Something went wrong. Please try again.';
+    errEl.style.display = 'block';
+  });
+});
+</script>
+</body>
+</html>
