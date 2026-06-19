@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>MOSUN — A&R Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #FAF9F6; --card: #FFFFFF; --text: #1A1A1A; --muted: #7A7A72;
+  --hint: #A8A89E; --border: rgba(0,0,0,0.08); --accent: #1D9E75;
+  --sel-bg: #E1F5EE; --sel-text: #085041; --sel-border: #5DCAA5;
+  --warn: #C7853B; --grid: rgba(0,0,0,0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413; --card: #1E1E1C; --text: #EAEAE6; --muted: #9E9E96;
+    --hint: #6A6A62; --border: rgba(255,255,255,0.08); --accent: #9FE1CB;
+    --sel-bg: #085041; --sel-text: #9FE1CB; --sel-border: #1D9E75;
+    --warn: #E0B070; --grid: rgba(255,255,255,0.08);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Instrument Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+.container { max-width: 1080px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+.sub { font-family: 'Newsreader', serif; font-style: italic; font-size: 15px; color: var(--muted); margin-bottom: 1.75rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; }
+.card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+.th { display: inline-flex; align-items: center; }
+.info {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border-radius: 50%; border: 1px solid var(--border);
+  color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1; cursor: help;
+  margin-left: 9px; flex: none; text-transform: none; letter-spacing: 0; font-family: 'Instrument Sans', system-ui, sans-serif;
+}
+.info:hover, .info:focus { border-color: var(--accent); color: var(--accent); outline: none; }
+.info .tip {
+  position: absolute; top: calc(100% + 8px); left: -4px; width: min(340px, 78vw);
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 13px; font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--muted);
+  text-transform: none; letter-spacing: normal; text-align: left;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.16); opacity: 0; visibility: hidden;
+  transform: translateY(-4px); transition: opacity .15s, transform .15s, visibility .15s; z-index: 30;
+}
+.info:hover .tip, .info:focus .tip { opacity: 1; visibility: visible; transform: translateY(0); }
+.info .tip b { color: var(--text); font-weight: 600; }
+.info .tip .tag { font-family: 'Newsreader', serif; font-style: italic; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn {
+  font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 100px;
+  cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); transition: all .15s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn.primary:hover { opacity: .85; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.status { font-size: 13px; color: var(--muted); }
+.status.err { color: #E24B4A; }
+.status.ok { color: var(--accent); }
+
+.slider-wrap { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 260px; }
+input[type=range] { flex: 1; accent-color: var(--accent); height: 4px; }
+.blend-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.blend-label b { color: var(--accent); }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 10px 10px; border-bottom: 1px solid var(--border); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.song-row { cursor: pointer; transition: background .12s; }
+tr.song-row:hover { background: var(--sel-bg); }
+tr.song-row.active { background: var(--sel-bg); }
+.rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--sel-bg); color: var(--sel-text); font-size: 12px; font-weight: 700; }
+.song-name { font-weight: 600; }
+.score-pill { font-weight: 700; font-variant-numeric: tabular-nums; }
+.flag { font-size: 11px; color: var(--warn); font-weight: 600; margin-left: 6px; white-space: nowrap; }
+.bar-mini { height: 6px; border-radius: 4px; background: var(--accent); display: inline-block; vertical-align: middle; }
+.bar-track { display: inline-block; width: 80px; height: 6px; border-radius: 4px; background: var(--grid); vertical-align: middle; margin-left: 8px; overflow: hidden; }
+
+.chart-box { position: relative; height: 360px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.metric-list { list-style: none; }
+.metric-list li { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.metric-list li span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
+.muted-note { font-size: 12px; color: var(--hint); margin-top: 8px; }
+
+.crit-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; }
+.crit-item { display: flex; align-items: center; gap: 8px; }
+.crit-item input.cname { flex: 1; font-family: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+.crit-item input.cweight { width: 70px; font-family: inherit; font-size: 14px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); text-align: center; }
+.crit-item .wlabel { font-size: 11px; color: var(--hint); }
+.icon-btn { border: 1px solid var(--border); background: transparent; color: var(--muted); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 16px; line-height: 1; }
+.icon-btn:hover { border-color: #E24B4A; color: #E24B4A; }
+
+.grid-scroll { overflow-x: auto; }
+.score-grid th, .score-grid td { white-space: nowrap; }
+.score-grid td.song-cell { font-weight: 600; position: sticky; left: 0; background: var(--card); }
+.score-grid select { font-family: inherit; font-size: 13px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+.score-grid select.unset { color: var(--hint); }
+
+.adv summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); list-style: none; }
+.adv summary::-webkit-details-marker { display: none; }
+.adv summary::before { content: '▸ '; }
+.adv[open] summary::before { content: '▾ '; }
+.adv-body { margin-top: 1rem; }
+.lw-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 14px; }
+.lw-row label { flex: 1; }
+.lw-row input { width: 80px; font-family: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); text-align: center; }
+
+.empty { text-align: center; color: var(--muted); padding: 2rem 0; font-family: 'Newsreader', serif; font-style: italic; }
+
+#gate {
+  position: fixed; inset: 0; z-index: 100; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+}
+.gate-card { width: 100%; max-width: 380px; text-align: center; }
+.gate-card h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
+.gate-card .lead { font-family: 'Newsreader', serif; font-style: italic; color: var(--muted); font-size: 14px; margin-bottom: 1.75rem; }
+.gate-card input[type=password] {
+  width: 100%; font-family: inherit; font-size: 15px; padding: 13px 14px; text-align: center;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); outline: none;
+}
+.gate-card input[type=password]:focus { border-color: var(--accent); }
+.gate-card .submit-btn {
+  display: block; width: 100%; padding: 13px; margin-top: 12px; font-family: inherit;
+  font-size: 15px; font-weight: 600; border: none; border-radius: 100px; cursor: pointer;
+  background: var(--text); color: var(--bg); transition: opacity .15s;
+}
+.gate-card .submit-btn:hover { opacity: .85; }
+.gate-card .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+.gate-err { color: #E24B4A; font-size: 13px; margin-top: 12px; min-height: 18px; }
+.gate-foot { font-size: 12px; color: var(--hint); margin-top: 1.5rem; line-height: 1.5; }
+#setupBox { display: none; margin-top: 1.25rem; text-align: left; }
+#setupBox textarea { width: 100%; min-height: 92px; font-family: ui-monospace, monospace; font-size: 12px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); resize: vertical; }
+.app-hidden { display: none !important; }
+
+@media (max-width: 720px) {
+  .detail-grid { grid-template-columns: 1fr; }
+  .chart-box { height: 300px; }
+  h1 { font-size: 22px; }
+}
+
+@media print {
+  body { background: #fff; color: #000; }
+  .no-print { display: none !important; }
+  .card { border: 1px solid #ccc; box-shadow: none; page-break-inside: avoid; }
+  .container { max-width: none; padding: 0; }
+  tr.song-row { background: #fff !important; }
+}
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="gate-card">
+    <h2>MOSUN A&R</h2>
+    <p class="lead" id="gateLead">Private dashboard — enter your passphrase.</p>
+    <input type="password" id="gatePass" placeholder="Passphrase" autocomplete="current-password" autofocus>
+    <button class="submit-btn" id="gateBtn">Unlock</button>
+    <div class="gate-err" id="gateErr"></div>
+    <div id="setupBox">
+      <p class="gate-foot" style="margin-top:0;">Setup mode — paste this lock code back to Claude so it can be baked in and the plaintext token removed:</p>
+      <textarea id="setupCode" readonly onclick="this.select()"></textarea>
+    </div>
+    <p class="gate-foot">Nothing here is readable without your passphrase. It's checked in your browser — never sent anywhere.</p>
+  </div>
+</div>
+
+<div class="container app-hidden" id="app">
+  <h1>A&R Dashboard <span class="info" tabindex="0">i<span class="tip">Every track gets three numbers, all <b>0–100, higher is better</b>: a <b>Listener score</b> from your form responses, a <b>Self score</b> from your own ratings, and a <b>MOSUN Score</b> that blends the two and sets the ranking. Pick singles off the top — but mind the sample-size flags. Everything saves automatically to your Sheet.</span></span></h1>
+  <p class="sub">Listener feedback × your gut, blended into one MOSUN Score.</p>
+
+  <!-- Controls -->
+  <div class="card no-print">
+    <div class="card-head">
+      <span class="th"><span class="card-title">Controls</span><span class="info" tabindex="0">i<span class="tip">The <b>blend</b> slider sets how much of the MOSUN Score comes from your audience vs. your own gut — left trusts listeners more, right trusts you more. <b>Refresh</b> re-pulls the latest responses; the export buttons save the ranked table as a file or print-ready PDF.</span></span></span>
+      <span id="status" class="status">Loading live data…</span>
+    </div>
+    <div class="row" style="margin-bottom:1rem;">
+      <div class="slider-wrap">
+        <span class="blend-label">Blend</span>
+        <input type="range" id="blend" min="0" max="100" value="60">
+        <span class="blend-label" id="blendLabel">Listener <b>60%</b> · Self <b>40%</b></span>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="refreshBtn">↻ Refresh data</button>
+      <button class="btn" id="csvBtn">Export CSV</button>
+      <button class="btn" id="jsonBtn">Export JSON</button>
+      <button class="btn" id="printBtn">Print / PDF</button>
+    </div>
+  </div>
+
+  <!-- Ranking -->
+  <div class="card">
+    <div class="card-head">
+      <span class="th"><span class="card-title">Ranking — MOSUN Score</span><span class="info" tabindex="0">i<span class="tip">Tracks sorted best-first by MOSUN Score. In the table: <b>Listener</b> = what your audience said, <b>Self</b> = your scorecard, <b>MOSUN</b> = the blend. <b>n</b> = response count — <span class="tag">⚠ low n</span> means fewer than 5 responses (don't over-trust it), <span class="tag">self only</span> means no responses so it's purely your score. Click any row or bar to see what's driving it.</span></span></span>
+    </div>
+    <div class="chart-box"><canvas id="rankChart"></canvas></div>
+    <div id="rankTableWrap" style="margin-top:1.5rem;"></div>
+  </div>
+
+  <!-- Per-track detail -->
+  <div class="card" id="detailCard" style="display:none;">
+    <div class="card-head">
+      <span class="th"><span class="card-title">Breakdown — <span id="detailSong"></span></span><span class="info" tabindex="0">i<span class="tip">The five sub-metrics behind this track's <b>Listener</b> score (each 0–100), plus your <b>Self</b> score — so you can see <i>why</i> it ranks where it does. The radar shows its shape: a balanced track fills the web evenly; a spiky one is strong in some areas, weak in others. The <b>weak-parts penalty</b> is points docked for listeners flagging boring sections.</span></span></span>
+      <button class="btn no-print" id="closeDetail">Close</button>
+    </div>
+    <div class="detail-grid">
+      <div class="chart-box" style="height:320px;"><canvas id="radarChart"></canvas></div>
+      <div>
+        <ul class="metric-list" id="detailMetrics"></ul>
+        <p class="muted-note" id="detailNote"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Self-filter scorecard -->
+  <div class="card no-print">
+    <div class="card-head">
+      <span class="th"><span class="card-title">Self-Filter — your scorecard</span><span class="info" tabindex="0">i<span class="tip">Your own ratings, independent of the crowd. First set your <b>criteria</b> and their <b>weights</b> (higher weight = counts more toward the Self score) — rename, add, or remove any. Then in the grid, rate each track <b>1–5</b> per criterion; leave a cell on “—” to skip it. The <b>Self</b> column updates live and every change saves to the Sheet automatically.</span></span></span>
+      <span class="status" id="saveStatus"></span>
+    </div>
+    <div class="crit-list" id="critList"></div>
+    <button class="btn" id="addCritBtn" style="margin-bottom:1.5rem;">+ Add criterion</button>
+    <div class="grid-scroll">
+      <table class="score-grid" id="scoreGrid"></table>
+    </div>
+    <details class="adv" style="margin-top:1.5rem;">
+      <summary>Advanced — listener score weights <span class="info" tabindex="0" onclick="event.preventDefault();">i<span class="tip">Controls how raw form answers become the 0–100 <b>Listener</b> score. Each weight is that metric's share of the blend (normalized, so relative size is what matters). <b>Penalty</b> is the max points subtracted when every listener flags weak parts. Defaults are sensible — only touch these if a metric matters more or less to you than the blend assumes.</span></span></summary>
+      <div class="adv-body" id="lwBody"></div>
+    </details>
+  </div>
+</div>
+
+<script>
+/* ===== Config ===== */
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBHACycNb4bteP8p9jW-894zG0-IGYZzJYsvRJ5koZ8BgwBHkU2UXFUC6VuFQBnnOl/exec';
+
+// The access token is AES-GCM encrypted with your passphrase (PBKDF2-SHA256).
+// LOCK holds only ciphertext — useless without the passphrase. The plaintext
+// token is never stored in this file once setup is done.
+var LOCK = { "s": "S45NEMBGdVpQEt+HaQkxkg==", "i": "Jchnqw2o94hSlZrk", "c": "sl1TtRzcfOdFJ9lu5t7DytLCDesClEOabVuvW6zeyEn/mNryrg==" };
+var BOOTSTRAP_TOKEN = '';    // only set during first-time setup, then removed
+var READ_TOKEN = null;       // populated in-memory after a successful unlock
+
+var SEED_SONGS = ['Fly High','BASSLINE','Afraid of the Light','TELL ME WHY','I ENVY U','Root','你不是我'];
+
+var DEFAULT_CRITERIA = [
+  { name: 'Hook',          weight: 1.5 },
+  { name: 'Production',    weight: 1 },
+  { name: 'Lyrics/topline',weight: 1 },
+  { name: 'Replay value',  weight: 1.25 },
+  { name: 'Originality',   weight: 1 },
+  { name: 'Gut feel',      weight: 1.5 }
+];
+var DEFAULT_LISTENER_WEIGHTS = { hook: 0.25, playlist: 0.25, reaction: 0.20, share: 0.15, memorability: 0.15 };
+var LW_LABELS = { hook: 'Hook (avg, normalized)', playlist: 'Playlist-add rate', reaction: 'Reaction quality', share: 'Share intent', memorability: 'Memorability (hum it)' };
+var DEFAULT_PENALTY = 15;   // max points subtracted when 100% report weak parts
+var DEFAULT_BLEND = 0.6;    // listener share
+var LOW_SAMPLE = 5;
+
+var REACTION_Q = { 'Fire': 5, 'Vibing': 4, 'Meh': 2, 'Confused': 2, 'Skip': 1 };
+var YESMAYBE = { 'Yes': 1, 'Maybe': 0.5 };
+
+/* ===== State ===== */
+var state = {
+  responses: [],
+  criteria: clone(DEFAULT_CRITERIA),
+  listenerWeights: clone(DEFAULT_LISTENER_WEIGHTS),
+  penalty: DEFAULT_PENALTY,
+  blend: DEFAULT_BLEND,
+  scores: {}     // song -> { criterionName: 1..5 }
+};
+var ranked = [];
+var selectedSong = null;
+var rankChart = null, radarChart = null;
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function $(id) { return document.getElementById(id); }
+
+/* ===== JSONP (sidesteps CORS for both read & write) ===== */
+var jsonpId = 0;
+function jsonp(params) {
+  return new Promise(function (resolve, reject) {
+    var cb = 'mosun_cb_' + (jsonpId++);
+    var s = document.createElement('script');
+    var to = setTimeout(function () { cleanup(); reject(new Error('Request timed out')); }, 20000);
+    function cleanup() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } if (s.parentNode) s.parentNode.removeChild(s); }
+    window[cb] = function (data) { cleanup(); resolve(data); };
+    params.callback = cb;
+    var q = Object.keys(params).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
+    s.src = SCRIPT_URL + '?' + q;
+    s.onerror = function () { cleanup(); reject(new Error('Network error')); };
+    document.head.appendChild(s);
+  });
+}
+
+/* ===== Parsing helpers ===== */
+// Hook may arrive as: clean integer (new backend), "4/5" (string), or a date-
+// corrupted value like 2026-05-04T… (old Sheets auto-format of "4/5"). Recover all.
+function parseHook(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  if (typeof v === 'number') return (v >= 1 && v <= 5) ? v : null;
+  var s = String(v).trim();
+  var m = s.match(/^(\d)\s*\/\s*5$/);
+  if (m) return parseInt(m[1], 10);
+  if (/^\d$/.test(s)) { var n = parseInt(s, 10); return (n >= 1 && n <= 5) ? n : null; }
+  var d = new Date(s);                          // legacy "N/5" coerced to a date
+  if (!isNaN(d.getTime())) {
+    var dd = d.getUTCDate(), mm = d.getUTCMonth() + 1;   // the "/5" sits in one slot
+    if (mm === 5 && dd >= 1 && dd <= 5) return dd;
+    if (dd === 5 && mm >= 1 && mm <= 5) return mm;
+    if (dd >= 1 && dd <= 5) return dd;
+  }
+  return null;
+}
+function norm5(x) { return (x - 1) / 4; }       // 1..5 -> 0..1
+function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+function fmt(x) { return (x === null || x === undefined || isNaN(x)) ? '—' : Math.round(x); }
+
+/* ===== Aggregation & scoring ===== */
+function songList() {
+  var set = {};
+  var order = [];
+  function add(s) { if (s && !set[s]) { set[s] = 1; order.push(s); } }
+  SEED_SONGS.forEach(add);
+  state.responses.forEach(function (r) { add(r.Song); });
+  Object.keys(state.scores).forEach(add);
+  return order;
+}
+
+function aggregate(song) {
+  var rows = state.responses.filter(function (r) { return r.Song === song; });
+  var n = rows.length;
+  if (n === 0) return { n: 0 };
+
+  var hookVals = [], reactVals = [], plVals = [], shVals = [], memVals = [], weakCount = 0;
+  rows.forEach(function (r) {
+    var h = parseHook(r.Hook); if (h !== null) hookVals.push(norm5(h));
+    var rq = REACTION_Q[r.Reaction]; if (rq) reactVals.push(norm5(rq));
+    plVals.push(YESMAYBE[r.Playlist] || 0);
+    shVals.push(YESMAYBE[r.Share] || 0);
+    memVals.push(String(r.Remembered) === 'Yes' ? 1 : 0);
+    if (String(r['Weak parts']) === 'Some parts') weakCount++;
+  });
+  function avg(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : 0; }
+  return {
+    n: n,
+    hook: avg(hookVals), hookN: hookVals.length,
+    reaction: avg(reactVals),
+    playlist: avg(plVals),
+    share: avg(shVals),
+    memorability: avg(memVals),
+    weakRate: weakCount / n
+  };
+}
+
+function listenerScore(agg) {
+  if (!agg || agg.n === 0) return null;
+  var w = state.listenerWeights;
+  var sum = w.hook + w.playlist + w.reaction + w.share + w.memorability;
+  if (sum <= 0) return 0;
+  var base = (w.hook * agg.hook + w.playlist * agg.playlist + w.reaction * agg.reaction
+            + w.share * agg.share + w.memorability * agg.memorability) / sum;
+  var score = base * 100 - agg.weakRate * state.penalty;
+  return clamp(score, 0, 100);
+}
+
+function selfScore(song) {
+  var sc = state.scores[song] || {};
+  var num = 0, den = 0;
+  state.criteria.forEach(function (c) {
+    var v = sc[c.name];
+    if (v >= 1 && v <= 5) { num += c.weight * norm5(v); den += c.weight; }
+  });
+  return den > 0 ? (num / den) * 100 : null;
+}
+
+function mosunScore(listener, self) {
+  if (listener !== null && self !== null) return state.blend * listener + (1 - state.blend) * self;
+  if (listener !== null) return listener;
+  if (self !== null) return self;
+  return null;
+}
+
+function computeAll() {
+  var out = [];
+  songList().forEach(function (song) {
+    var agg = aggregate(song);
+    var listener = listenerScore(agg);
+    var self = selfScore(song);
+    var mosun = mosunScore(listener, self);
+    out.push({ song: song, agg: agg, n: agg.n, listener: listener, self: self, mosun: mosun });
+  });
+  out = out.filter(function (x) { return x.mosun !== null; });
+  out.sort(function (a, b) { return b.mosun - a.mosun; });
+  ranked = out;
+  return out;
+}
+
+/* ===== Rendering ===== */
+function accent() { return getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#1D9E75'; }
+function textColor() { return getComputedStyle(document.body).getPropertyValue('--text').trim() || '#000'; }
+function gridColor() { return getComputedStyle(document.body).getPropertyValue('--grid').trim() || 'rgba(0,0,0,.06)'; }
+
+function renderRankChart() {
+  var ctx = $('rankChart').getContext('2d');
+  if (rankChart) rankChart.destroy();
+  if (!ranked.length) return;
+  rankChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ranked.map(function (r) { return r.song; }),
+      datasets: [{
+        label: 'MOSUN Score',
+        data: ranked.map(function (r) { return Math.round(r.mosun); }),
+        backgroundColor: accent(),
+        borderRadius: 8,
+        maxBarThickness: 38
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      onClick: function (e, els) { if (els.length) selectSong(ranked[els[0].index].song); },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return 'MOSUN ' + c.parsed.x; } } } },
+      scales: {
+        x: { min: 0, max: 100, grid: { color: gridColor() }, ticks: { color: textColor() } },
+        y: { grid: { display: false }, ticks: { color: textColor(), font: { size: 13 } } }
+      }
+    }
+  });
+}
+
+function renderRankTable() {
+  var wrap = $('rankTableWrap');
+  if (!ranked.length) { wrap.innerHTML = '<div class="empty">No scores yet. Once responses come in or you score a track, rankings appear here.</div>'; return; }
+  var max = ranked[0].mosun || 100;
+  var html = '<table><thead><tr>' +
+    '<th>#</th><th>Song</th>' +
+    '<th class="num">MOSUN</th><th class="num">Listener</th><th class="num">Self</th><th class="num">n</th>' +
+    '</tr></thead><tbody>';
+  ranked.forEach(function (r, i) {
+    var pct = max > 0 ? (r.mosun / max * 100) : 0;
+    var flag = (r.n > 0 && r.n < LOW_SAMPLE) ? '<span class="flag">⚠ low n</span>' : (r.n === 0 ? '<span class="flag">self only</span>' : '');
+    html += '<tr class="song-row' + (r.song === selectedSong ? ' active' : '') + '" data-song="' + escapeAttr(r.song) + '">' +
+      '<td><span class="rank-badge">' + (i + 1) + '</span></td>' +
+      '<td><span class="song-name">' + escapeHtml(r.song) + '</span>' + flag +
+        '<span class="bar-track"><span class="bar-mini" style="width:' + pct + '%"></span></span></td>' +
+      '<td class="num"><span class="score-pill">' + fmt(r.mosun) + '</span></td>' +
+      '<td class="num">' + fmt(r.listener) + '</td>' +
+      '<td class="num">' + fmt(r.self) + '</td>' +
+      '<td class="num">' + r.n + '</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+  Array.prototype.forEach.call(wrap.querySelectorAll('.song-row'), function (tr) {
+    tr.addEventListener('click', function () { selectSong(tr.getAttribute('data-song')); });
+  });
+}
+
+function selectSong(song) {
+  selectedSong = song;
+  var r = ranked.find(function (x) { return x.song === song; });
+  if (!r) { var agg = aggregate(song); r = { song: song, agg: agg, n: agg.n, listener: listenerScore(agg), self: selfScore(song), mosun: null }; }
+  $('detailCard').style.display = 'block';
+  $('detailSong').textContent = song;
+
+  var a = r.agg || {};
+  var metrics = [
+    ['Hook (avg, 0–100)', a.n ? Math.round(a.hook * 100) : null],
+    ['Reaction quality', a.n ? Math.round(a.reaction * 100) : null],
+    ['Playlist-add rate', a.n ? Math.round(a.playlist * 100) : null],
+    ['Share intent', a.n ? Math.round(a.share * 100) : null],
+    ['Memorability', a.n ? Math.round(a.memorability * 100) : null],
+    ['Weak-parts penalty', a.n ? '−' + (a.weakRate * state.penalty).toFixed(1) : null],
+    ['— Listener score', fmt(r.listener)],
+    ['— Self score', fmt(r.self)],
+    ['— MOSUN score', fmt(r.mosun)]
+  ];
+  $('detailMetrics').innerHTML = metrics.map(function (m) {
+    var v = (m[1] === null || m[1] === undefined) ? '—' : m[1];
+    return '<li><span>' + escapeHtml(m[0]) + '</span><span>' + v + '</span></li>';
+  }).join('');
+  $('detailNote').textContent = a.n ? (a.n + ' response' + (a.n === 1 ? '' : 's') + (a.n < LOW_SAMPLE ? ' — low sample, treat with caution.' : '.')) : 'No listener responses yet — self score only.';
+
+  renderRadar(r);
+  renderRankTable();
+  $('detailCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderRadar(r) {
+  var ctx = $('radarChart').getContext('2d');
+  if (radarChart) radarChart.destroy();
+  var a = r.agg || {};
+  var data = [
+    a.n ? a.hook * 100 : 0,
+    a.n ? a.reaction * 100 : 0,
+    a.n ? a.playlist * 100 : 0,
+    a.n ? a.share * 100 : 0,
+    a.n ? a.memorability * 100 : 0,
+    r.self !== null ? r.self : 0
+  ];
+  radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Hook', 'Reaction', 'Playlist', 'Share', 'Memorability', 'Self'],
+      datasets: [{
+        label: r.song,
+        data: data.map(function (x) { return Math.round(x); }),
+        backgroundColor: hexA(accent(), 0.18),
+        borderColor: accent(),
+        borderWidth: 2,
+        pointBackgroundColor: accent()
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { r: { min: 0, max: 100, grid: { color: gridColor() }, angleLines: { color: gridColor() }, pointLabels: { color: textColor(), font: { size: 12 } }, ticks: { display: false } } }
+    }
+  });
+}
+
+/* ===== Scorecard UI ===== */
+function renderCriteria() {
+  var list = $('critList');
+  list.innerHTML = '';
+  state.criteria.forEach(function (c, idx) {
+    var div = document.createElement('div');
+    div.className = 'crit-item';
+    div.innerHTML =
+      '<input class="cname" type="text" value="' + escapeAttr(c.name) + '">' +
+      '<span class="wlabel">weight</span>' +
+      '<input class="cweight" type="number" min="0" step="0.25" value="' + c.weight + '">' +
+      '<button class="icon-btn" title="Remove">×</button>';
+    var nameInput = div.querySelector('.cname');
+    var weightInput = div.querySelector('.cweight');
+    nameInput.addEventListener('change', function () {
+      var old = state.criteria[idx].name;
+      var nw = nameInput.value.trim() || old;
+      if (nw !== old) {
+        // migrate any per-song scores keyed by the old name
+        Object.keys(state.scores).forEach(function (song) {
+          if (state.scores[song] && state.scores[song][old] !== undefined) {
+            state.scores[song][nw] = state.scores[song][old];
+            delete state.scores[song][old];
+          }
+        });
+        state.criteria[idx].name = nw;
+        saveAllScores();
+      }
+      refreshDerived(); saveConfig();
+    });
+    weightInput.addEventListener('change', function () {
+      state.criteria[idx].weight = parseFloat(weightInput.value) || 0;
+      refreshDerived(); saveConfig();
+    });
+    div.querySelector('.icon-btn').addEventListener('click', function () {
+      state.criteria.splice(idx, 1);
+      renderCriteria(); renderScoreGrid(); refreshDerived(); saveConfig();
+    });
+    list.appendChild(div);
+  });
+}
+
+function renderScoreGrid() {
+  var t = $('scoreGrid');
+  var songs = songList();
+  var head = '<thead><tr><th>Song</th>';
+  state.criteria.forEach(function (c) { head += '<th>' + escapeHtml(c.name) + '</th>'; });
+  head += '<th class="num">Self</th></tr></thead>';
+  var body = '<tbody>';
+  songs.forEach(function (song) {
+    body += '<tr><td class="song-cell">' + escapeHtml(song) + '</td>';
+    state.criteria.forEach(function (c) {
+      var v = (state.scores[song] && state.scores[song][c.name]) || '';
+      var opts = '<option value="">—</option>';
+      for (var i = 1; i <= 5; i++) opts += '<option value="' + i + '"' + (String(v) === String(i) ? ' selected' : '') + '>' + i + '</option>';
+      body += '<td><select class="' + (v ? '' : 'unset') + '" data-song="' + escapeAttr(song) + '" data-crit="' + escapeAttr(c.name) + '">' + opts + '</select></td>';
+    });
+    body += '<td class="num">' + fmt(selfScore(song)) + '</td>';
+  });
+  body += '</tbody>';
+  t.innerHTML = head + body;
+  Array.prototype.forEach.call(t.querySelectorAll('select'), function (sel) {
+    sel.addEventListener('change', function () {
+      var song = sel.getAttribute('data-song'), crit = sel.getAttribute('data-crit');
+      if (!state.scores[song]) state.scores[song] = {};
+      if (sel.value === '') delete state.scores[song][crit];
+      else state.scores[song][crit] = parseInt(sel.value, 10);
+      sel.className = sel.value ? '' : 'unset';
+      saveScores(song);
+      refreshDerived();
+    });
+  });
+}
+
+function renderListenerWeights() {
+  var body = $('lwBody');
+  var html = '';
+  Object.keys(DEFAULT_LISTENER_WEIGHTS).forEach(function (k) {
+    html += '<div class="lw-row"><label>' + LW_LABELS[k] + '</label>' +
+      '<input type="number" min="0" step="0.05" data-lw="' + k + '" value="' + state.listenerWeights[k] + '"></div>';
+  });
+  html += '<div class="lw-row"><label>Weak-parts penalty (max pts)</label>' +
+    '<input type="number" min="0" step="1" data-lw="penalty" value="' + state.penalty + '"></div>';
+  body.innerHTML = html;
+  Array.prototype.forEach.call(body.querySelectorAll('input'), function (inp) {
+    inp.addEventListener('change', function () {
+      var k = inp.getAttribute('data-lw');
+      var val = parseFloat(inp.value) || 0;
+      if (k === 'penalty') state.penalty = val; else state.listenerWeights[k] = val;
+      refreshDerived(); saveConfig();
+    });
+  });
+}
+
+function refreshDerived() {
+  computeAll();
+  renderRankChart();
+  renderRankTable();
+  // keep the self-score column current
+  if ($('scoreGrid').querySelector('tbody')) {
+    var songs = songList();
+    var rows = $('scoreGrid').querySelectorAll('tbody tr');
+    songs.forEach(function (song, i) {
+      if (rows[i]) { var cells = rows[i].querySelectorAll('td'); cells[cells.length - 1].textContent = fmt(selfScore(song)); }
+    });
+  }
+  if (selectedSong) selectSong(selectedSong);
+}
+
+/* ===== Persistence ===== */
+var saveTimers = {};
+function debounce(key, fn, ms) {
+  clearTimeout(saveTimers[key]);
+  saveTimers[key] = setTimeout(fn, ms || 600);
+}
+function setSaveStatus(txt, cls) { var el = $('saveStatus'); el.textContent = txt; el.className = 'status' + (cls ? ' ' + cls : ''); }
+
+function configPayload() {
+  return { criteria: state.criteria, listenerWeights: state.listenerWeights, penalty: state.penalty, blend: state.blend };
+}
+function saveConfig() {
+  localStorage.setItem('mosun_ar_config', JSON.stringify(configPayload()));
+  debounce('config', function () { pushKey('config', configPayload()); });
+}
+function saveScores(song) {
+  localStorage.setItem('mosun_ar_scores', JSON.stringify(state.scores));
+  debounce('scores::' + song, function () { pushKey('scores::' + song, state.scores[song] || {}); });
+}
+function saveAllScores() {
+  localStorage.setItem('mosun_ar_scores', JSON.stringify(state.scores));
+  Object.keys(state.scores).forEach(function (song) {
+    debounce('scores::' + song, function () { pushKey('scores::' + song, state.scores[song] || {}); }, 800);
+  });
+}
+function pushKey(key, obj) {
+  setSaveStatus('Saving…');
+  jsonp({ action: 'save', token: READ_TOKEN, key: key, value: JSON.stringify(obj) })
+    .then(function (res) {
+      if (res && res.ok) setSaveStatus('Saved to Sheet ✓', 'ok');
+      else setSaveStatus('Saved locally (sheet refused: ' + ((res && res.error) || '?') + ')', 'err');
+    })
+    .catch(function () { setSaveStatus('Saved locally — sheet unreachable', 'err'); });
+}
+
+function applyServerState(sf) {
+  sf = sf || {};
+  // config
+  if (sf.config && typeof sf.config === 'object') {
+    if (Array.isArray(sf.config.criteria) && sf.config.criteria.length) state.criteria = sf.config.criteria;
+    if (sf.config.listenerWeights) state.listenerWeights = Object.assign(clone(DEFAULT_LISTENER_WEIGHTS), sf.config.listenerWeights);
+    if (typeof sf.config.penalty === 'number') state.penalty = sf.config.penalty;
+    if (typeof sf.config.blend === 'number') state.blend = sf.config.blend;
+  } else {
+    var lc = localStorage.getItem('mosun_ar_config');
+    if (lc) { try { var c = JSON.parse(lc); if (c.criteria) state.criteria = c.criteria; if (c.listenerWeights) state.listenerWeights = c.listenerWeights; if (typeof c.penalty === 'number') state.penalty = c.penalty; if (typeof c.blend === 'number') state.blend = c.blend; } catch (e) {} }
+  }
+  // scores
+  state.scores = {};
+  var found = false;
+  Object.keys(sf).forEach(function (k) {
+    if (k.indexOf('scores::') === 0 && sf[k] && typeof sf[k] === 'object') { state.scores[k.slice(8)] = sf[k]; found = true; }
+  });
+  if (!found) {
+    var ls = localStorage.getItem('mosun_ar_scores');
+    if (ls) { try { state.scores = JSON.parse(ls) || {}; } catch (e) {} }
+  }
+  // reflect blend into the slider
+  $('blend').value = Math.round(state.blend * 100);
+  updateBlendLabel();
+}
+
+/* ===== Data load ===== */
+function loadData() {
+  $('status').textContent = 'Loading live data…';
+  $('status').className = 'status';
+  $('refreshBtn').disabled = true;
+  jsonp({ action: 'data', token: READ_TOKEN })
+    .then(function (data) {
+      if (data && data.error) throw new Error(data.error);
+      state.responses = (data && data.responses) || [];
+      applyServerState(data && data.selfFilter);
+      var nSongs = {};
+      state.responses.forEach(function (r) { if (r.Song) nSongs[r.Song] = 1; });
+      $('status').textContent = state.responses.length + ' responses · ' + Object.keys(nSongs).length + ' tracks with feedback';
+      $('status').className = 'status ok';
+      renderCriteria(); renderListenerWeights(); renderScoreGrid(); refreshDerived();
+    })
+    .catch(function (err) {
+      $('status').textContent = 'Could not load: ' + err.message + ' (check token / redeploy)';
+      $('status').className = 'status err';
+      // still render UI from local/defaults so scoring works offline
+      applyServerState(null);
+      renderCriteria(); renderListenerWeights(); renderScoreGrid(); refreshDerived();
+    })
+    .then(function () { $('refreshBtn').disabled = false; });
+}
+
+/* ===== Exports ===== */
+function exportCSV() {
+  var rows = [['Rank', 'Song', 'MOSUN', 'Listener', 'Self', 'n', 'Hook', 'Reaction', 'Playlist%', 'Share%', 'Memorability%', 'WeakPenalty']];
+  ranked.forEach(function (r, i) {
+    var a = r.agg || {};
+    rows.push([i + 1, r.song, fmt(r.mosun), fmt(r.listener), fmt(r.self), r.n,
+      a.n ? Math.round(a.hook * 100) : '', a.n ? Math.round(a.reaction * 100) : '',
+      a.n ? Math.round(a.playlist * 100) : '', a.n ? Math.round(a.share * 100) : '',
+      a.n ? Math.round(a.memorability * 100) : '', a.n ? (a.weakRate * state.penalty).toFixed(1) : '']);
+  });
+  var csv = rows.map(function (row) { return row.map(csvCell).join(','); }).join('\r\n');
+  download('mosun-ranking.csv', 'text/csv;charset=utf-8', '﻿' + csv);
+}
+function exportJSON() {
+  var payload = { generatedFor: 'MOSUN A&R', blend: state.blend, criteria: state.criteria,
+    listenerWeights: state.listenerWeights, penalty: state.penalty, ranking: ranked };
+  download('mosun-ranking.json', 'application/json', JSON.stringify(payload, null, 2));
+}
+function csvCell(v) { v = (v === null || v === undefined) ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function download(name, type, content) {
+  var blob = new Blob([content], { type: type });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+}
+
+/* ===== Misc helpers ===== */
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function escapeAttr(s) { return escapeHtml(s); }
+function hexA(hex, a) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
+  var n = parseInt(hex, 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+function updateBlendLabel() {
+  var l = Math.round(state.blend * 100);
+  $('blendLabel').innerHTML = 'Listener <b>' + l + '%</b> · Self <b>' + (100 - l) + '%</b>';
+}
+
+/* ===== Wire up ===== */
+$('blend').addEventListener('input', function () {
+  state.blend = parseInt(this.value, 10) / 100;
+  updateBlendLabel();
+  refreshDerived();
+});
+$('blend').addEventListener('change', saveConfig);
+$('refreshBtn').addEventListener('click', loadData);
+$('csvBtn').addEventListener('click', exportCSV);
+$('jsonBtn').addEventListener('click', exportJSON);
+$('printBtn').addEventListener('click', function () { window.print(); });
+$('addCritBtn').addEventListener('click', function () {
+  state.criteria.push({ name: 'New criterion', weight: 1 });
+  renderCriteria(); renderScoreGrid(); refreshDerived(); saveConfig();
+});
+$('closeDetail').addEventListener('click', function () { selectedSong = null; $('detailCard').style.display = 'none'; renderRankTable(); });
+
+/* ===== Passphrase lock (WebCrypto AES-GCM + PBKDF2) ===== */
+function b64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
+function unb64(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
+function deriveKey(pass, salt) {
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey'])
+    .then(function (mat) {
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: salt, iterations: 250000, hash: 'SHA-256' },
+        mat, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    });
+}
+function encryptToken(pass, token) {
+  var salt = crypto.getRandomValues(new Uint8Array(16));
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  return deriveKey(pass, salt).then(function (key) {
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(token));
+  }).then(function (ct) {
+    return { s: b64(salt), i: b64(iv), c: b64(ct) };
+  });
+}
+function decryptToken(pass, lock) {
+  return deriveKey(pass, unb64(lock.s)).then(function (key) {
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(lock.i) }, key, unb64(lock.c));
+  }).then(function (pt) {
+    return new TextDecoder().decode(pt);
+  });
+}
+
+function unlockApp() {
+  $('gate').remove();
+  $('app').classList.remove('app-hidden');
+  loadData();
+}
+
+function initGate() {
+  // Already unlocked this browser session?
+  var cached = sessionStorage.getItem('mosun_ar_token');
+  if (cached) { READ_TOKEN = cached; unlockApp(); return; }
+
+  var setup = !LOCK;   // no lock baked in yet → first-time setup
+  if (setup) {
+    $('gateLead').textContent = 'Set a passphrase to lock this dashboard.';
+    $('gatePass').placeholder = 'Choose a passphrase';
+    $('gatePass').setAttribute('autocomplete', 'new-password');
+    $('gateBtn').textContent = 'Lock it';
+  }
+
+  function attempt() {
+    var pass = $('gatePass').value;
+    if (!pass) { $('gateErr').textContent = 'Enter a passphrase.'; return; }
+    $('gateBtn').disabled = true;
+    $('gateErr').textContent = '';
+
+    if (setup) {
+      if (!BOOTSTRAP_TOKEN) { $('gateErr').textContent = 'No token to lock — open the original local copy to set up.'; $('gateBtn').disabled = false; return; }
+      encryptToken(pass, BOOTSTRAP_TOKEN).then(function (lock) {
+        $('setupBox').style.display = 'block';
+        $('setupCode').value = JSON.stringify(lock);
+        $('gateErr').textContent = '';
+        $('gateBtn').textContent = 'Enter dashboard';
+        $('gateBtn').disabled = false;
+        // let them use it immediately this session
+        READ_TOKEN = BOOTSTRAP_TOKEN;
+        sessionStorage.setItem('mosun_ar_token', BOOTSTRAP_TOKEN);
+        setup = false;
+        $('gateBtn').onclick = unlockApp;
+      });
+      return;
+    }
+
+    decryptToken(pass, LOCK).then(function (token) {
+      READ_TOKEN = token;
+      sessionStorage.setItem('mosun_ar_token', token);
+      unlockApp();
+    }).catch(function () {
+      $('gateErr').textContent = 'Wrong passphrase.';
+      $('gateBtn').disabled = false;
+      $('gatePass').select();
+    });
+  }
+
+  $('gateBtn').addEventListener('click', attempt);
+  $('gatePass').addEventListener('keydown', function (e) { if (e.key === 'Enter') attempt(); });
+  $('gatePass').focus();
+}
+
+initGate();
+</script>
+</body>
+</html>
