@@ -174,15 +174,15 @@ input[type=radio]{ accent-color:var(--saffron); }
     <div class="label">2 &middot; Review, scrub in-points &amp; swap</div>
     <div class="handlebar">
       <span>Handle</span>
-      <input class="numin" id="handleIn" type="number" min="0" max="10" step="0.5" value="1.5">
-      <span>seconds of padding added before &amp; after every beat (clamped to each clip).</span>
+      <input class="numin" id="handleIn" type="number" min="0" max="10" step="0.5" value="0">
+      <span>seconds of extra padding before &amp; after each beat. <b>0 = exact script timing</b> (clips assemble to the script length, captions aligned). Raise it only if you want trim room in CapCut.</span>
     </div>
     <div id="beats"></div>
     <div class="label" style="margin-top:32px">3 &middot; Export</div>
     <section class="panel">
       <div class="row" style="margin-bottom:16px; gap:20px; flex-wrap:wrap">
         <input class="txt" id="projName" placeholder="project name (slug)">
-        <label class="toggle" style="text-transform:none; letter-spacing:0"><input type="radio" name="exmode" id="modePre" checked> Pre-cut with handles</label>
+        <label class="toggle" style="text-transform:none; letter-spacing:0"><input type="radio" name="exmode" id="modePre" checked> Pre-cut to script (exact beats)</label>
         <label class="toggle" style="text-transform:none; letter-spacing:0"><input type="radio" name="exmode" id="modeFull"> Full clips</label>
       </div>
       <div class="exportbar">
@@ -540,7 +540,7 @@ async function claudeJSON(userText, schema, maxTokens){
 /* ============================== State ================================ */
 const state = {
   dir: null, handles: new Map(), clips: [],
-  beats: [], music: '', assign: [], handle: 1.5,   // assign[i] = { ranked, chosen, inPoint }
+  beats: [], music: '', assign: [], handle: 0,   // assign[i] = { ranked, chosen, inPoint }; 0 = exact beats
 };
 const $ = id => document.getElementById(id);
 function setMsg(t, err){ const m = $('msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }

@@ -156,6 +156,14 @@ check('computeCut: back handle + in-point clamp at clip end', () => {
   assert.equal(c.cleanIn, 1.5);
   assert.equal(c.cleanOut, 3.5);
 });
+check('computeCut: handle 0 = exact beat (assembles to script length)', () => {
+  const c = A.computeCut({ tStart: 0, tEnd: 2 }, clip10, 4, 0);
+  assert.equal(c.trimStart, 4);
+  assert.equal(c.trimEnd, 6);
+  assert.equal(c.handledDur, 2);     // == beatDur, no padding
+  assert.equal(c.cleanIn, 0);
+  assert.equal(c.cleanOut, 2);
+});
 check('computeCut: beat longer than clip uses whole clip', () => {
   const c = A.computeCut({ tStart: 0, tEnd: 30 }, clip10, 5, 1.5);
   assert.equal(c.trimStart, 0);
