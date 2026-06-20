@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>MOSUN — Script → Package</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ background:var(--ink); color:var(--cream); }
+body{ font-family:var(--font-body); line-height:1.5; -webkit-font-smoothing:antialiased; }
+::selection{ background:var(--saffron); color:var(--ink); }
+
+.wrap{ max-width:1100px; margin:0 auto; padding:52px 32px 136px; }
+
+header{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:32px; }
+.brand h1{ font-family:var(--font-display); font-weight:400; font-size:30px; letter-spacing:0.22em; text-transform:uppercase; line-height:1; }
+.brand .sub{ margin-top:12px; font-size:12px; letter-spacing:0.2em; text-transform:uppercase; color:var(--n3); }
+.dot{ color:var(--saffron); }
+
+.btn{ font-family:var(--font-body); font-size:12px; letter-spacing:0.16em; text-transform:uppercase; padding:12px 22px;
+  border-radius:var(--r-pill); border:1px solid var(--border-strong); background:transparent; color:var(--cream);
+  cursor:pointer; transition:border-color .9s var(--ease), background .9s var(--ease), color .9s var(--ease), box-shadow .9s var(--ease); }
+.btn:hover{ border-color:var(--saffron); box-shadow:0 0 0 1px var(--saffron), 0 0 28px -6px var(--saffron); }
+.btn.primary{ background:var(--saffron); color:var(--ink); border-color:var(--saffron); }
+.btn.primary:hover{ background:var(--saffron-hover); border-color:var(--saffron-hover); box-shadow:0 0 32px -6px var(--saffron); }
+.btn.small{ padding:8px 14px; }
+.btn:disabled{ opacity:.35; cursor:not-allowed; box-shadow:none; border-color:var(--border-strong); }
+.btn.busy{ opacity:.6; cursor:progress; }
+
+.statusbar{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--n3); margin-bottom:28px; min-height:18px; }
+.statusbar .count b{ color:var(--cream); font-weight:400; }
+.statusbar .count.gap b{ color:var(--saffron); }
+.statusbar .msg{ color:var(--n3); }
+.statusbar .msg.err{ color:var(--saffron-soft); }
+.hidden{ display:none !important; }
+
+.lead{ max-width:700px; }
+.lead p{ color:var(--n2); font-size:15px; margin-bottom:18px; }
+.lead .note{ font-size:12px; color:var(--n4); letter-spacing:0.04em; }
+.quote{ font-family:var(--font-quote); font-style:italic; font-size:22px; color:var(--n2); margin:0 0 28px; }
+
+.label{ font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:var(--n3); margin-bottom:14px; }
+.panel{ border:1px solid var(--hairline); border-radius:var(--r-card); padding:24px; margin-bottom:28px; background:#070707; }
+
+textarea.script{ width:100%; min-height:200px; font-family:var(--font-body); font-size:14px; color:var(--cream); background:transparent;
+  border:1px solid var(--border-strong); border-radius:var(--r-input); padding:14px; outline:none; resize:vertical; line-height:1.6; }
+textarea.script:focus{ border-color:var(--saffron); }
+textarea.script::placeholder{ color:var(--n4); }
+
+.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.row.mt{ margin-top:18px; }
+.spacer{ flex:1; }
+input.txt{ font-family:var(--font-body); font-size:13px; color:var(--cream); background:transparent;
+  border:none; border-bottom:1px solid var(--border-strong); padding:8px 2px; outline:none; min-width:160px; }
+input.txt:focus{ border-color:var(--saffron); }
+
+.toggle{ display:inline-flex; align-items:center; gap:8px; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--n3); cursor:pointer; user-select:none; }
+.toggle input{ accent-color:var(--saffron); width:15px; height:15px; }
+
+.aibar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:18px; padding-top:18px; border-top:1px solid var(--hairline); }
+.aibar .keyin{ flex:1; min-width:160px; font-family:var(--font-body); font-size:13px; color:var(--cream); background:transparent; border:none; border-bottom:1px solid var(--border-strong); padding:7px 2px; outline:none; }
+.aibar .keyin:focus{ border-color:var(--saffron); }
+.aibar .keyset{ font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--n3); }
+.aibar .keyset b{ color:var(--saffron); }
+.folderstate{ font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--n3); }
+.folderstate b{ color:var(--saffron); font-weight:400; }
+
+/* summary */
+.summary{ display:flex; gap:28px; flex-wrap:wrap; margin-bottom:24px; }
+.stat{ }
+.stat .num{ font-family:var(--font-display); font-size:26px; letter-spacing:0.06em; color:var(--cream); }
+.stat .num.gap{ color:var(--saffron); }
+.stat .cap{ font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--n3); margin-top:4px; }
+
+/* beats */
+.beat{ display:grid; grid-template-columns:200px 1fr; gap:20px; border:1px solid var(--hairline); border-radius:var(--r-card); padding:16px; margin-bottom:16px; }
+.beat.gap{ border-color:rgba(246,162,92,.4); }
+@media (max-width:680px){ .beat{ grid-template-columns:1fr; } }
+.beat .thumb{ position:relative; aspect-ratio:9/16; max-height:240px; background:#0a0a0a; border-radius:var(--r-input); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.beat .thumb canvas{ width:100%; height:100%; object-fit:cover; display:block; }
+.beat .thumb .ph{ font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--n4); text-align:center; padding:8px; }
+.beat .thumb .tofilm{ font-family:var(--font-display); font-size:13px; letter-spacing:0.18em; color:var(--saffron); text-transform:uppercase; }
+.beat .body{ display:flex; flex-direction:column; gap:10px; min-width:0; }
+.beat .head{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.beat .idx{ font-family:var(--font-display); font-size:15px; letter-spacing:0.1em; color:var(--saffron); }
+.beat .time{ font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--n3); font-variant-numeric:tabular-nums; }
+.beat .ost{ font-size:15px; color:var(--cream); }
+.beat .ost:empty::before{ content:'(no on-screen text)'; color:var(--n4); font-size:13px; }
+.beat .meta{ font-size:12px; color:var(--n3); }
+.beat .meta b{ color:var(--n2); font-weight:400; }
+.beat .tags{ display:flex; flex-wrap:wrap; gap:6px; }
+.beat .tag{ font-size:10px; letter-spacing:0.04em; padding:3px 9px; border-radius:var(--r-pill); border:1px solid var(--hairline); color:var(--n2); }
+.beat .swap{ margin-top:4px; }
+.beat select{ font-family:var(--font-body); font-size:13px; color:var(--cream); background:#0a0a0a; border:1px solid var(--border-strong);
+  border-radius:var(--r-input); padding:8px 10px; outline:none; max-width:100%; }
+.beat select:focus{ border-color:var(--saffron); }
+.beat select.tofilm{ color:var(--saffron); border-color:rgba(246,162,92,.5); }
+
+.gaps{ border:1px solid rgba(246,162,92,.4); border-radius:var(--r-card); padding:20px; margin-bottom:28px; }
+.gaps h3{ font-family:var(--font-display); font-size:14px; letter-spacing:0.2em; text-transform:uppercase; color:var(--saffron); margin-bottom:12px; }
+.gaps ul{ list-style:none; display:flex; flex-direction:column; gap:8px; }
+.gaps li{ font-size:13px; color:var(--n2); }
+.gaps li .gt{ color:var(--n3); font-variant-numeric:tabular-nums; margin-right:8px; }
+
+.exportbar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.muted{ color:var(--n4); font-size:12px; letter-spacing:0.04em; }
+.emptynote{ color:var(--n4); font-family:var(--font-quote); font-style:italic; font-size:18px; padding:24px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>ASSEMBLE<span class="dot">.</span></h1>
+      <div class="sub">Script &rarr; CapCut-ready package</div>
+    </div>
+    <div class="row">
+      <span class="folderstate hidden" id="folderState">Folder <b>connected</b></span>
+      <button class="btn" id="folderBtn">Open footage folder</button>
+    </div>
+  </header>
+
+  <div class="statusbar" id="statusbar">
+    <span class="count">Beats <b id="cBeats">0</b></span>
+    <span class="count">Matched <b id="cMatched">0</b></span>
+    <span class="count gap">To film <b id="cGaps">0</b></span>
+    <span class="msg" id="msg"></span>
+  </div>
+
+  <!-- intro -->
+  <section class="lead" id="intro">
+    <p class="quote">One script in, an 80% assembly out — you finish it in CapCut.</p>
+    <p>Paste a weekly-TikTok script. It's parsed into a timed shot list, each beat is matched against your
+       <b>Stage-1 catalog</b>, and you review &amp; swap before exporting a <b>CapCut-ready folder</b>:
+       ordered clips, <b>shotlist.md</b>, <b>captions.srt</b>, <b>MUSIC.txt</b>, and a <b>TO-FILM.md</b> of the gaps.</p>
+    <p class="note">Chrome only. Reuses your remembered footage folder and AI key from the catalog. Nothing renders; only short clips are copied.</p>
+  </section>
+
+  <!-- input -->
+  <section class="panel" id="inputPanel">
+    <div class="label">1 &middot; Script</div>
+    <textarea class="script" id="script" placeholder="Paste your shot-by-shot script…  e.g.&#10;[0-2s] Wide, walking out the door — street, golden hour. Text: 'new chapter'. Sound: lo-fi beat"></textarea>
+    <div class="row mt">
+      <button class="btn small" id="loadBtn">Load .txt / .md</button>
+      <label class="toggle"><input type="checkbox" id="rerankChk" checked> AI semantic re-rank</label>
+      <span class="spacer"></span>
+      <button class="btn primary" id="parseBtn">Parse &amp; match</button>
+    </div>
+    <div class="aibar">
+      <input class="keyin hidden" id="keyIn" type="password" placeholder="Paste Anthropic API key (sk-ant-…)" autocomplete="off">
+      <span class="keyset hidden" id="keySet">AI key <b>set</b></span>
+      <button class="btn small" id="keyBtn">Set AI key</button>
+    </div>
+  </section>
+
+  <!-- review -->
+  <section id="review" class="hidden">
+    <div class="summary" id="summary"></div>
+    <div class="gaps hidden" id="gaps"></div>
+    <div class="label">2 &middot; Review &amp; swap</div>
+    <div id="beats"></div>
+    <div class="label" style="margin-top:32px">3 &middot; Export</div>
+    <section class="panel">
+      <div class="row" style="margin-bottom:16px">
+        <input class="txt" id="projName" placeholder="project name (slug)">
+        <span class="muted" id="projHint"></span>
+      </div>
+      <div class="exportbar">
+        <button class="btn primary" id="exportBtn">Export package…</button>
+        <span class="muted">Pick a parent folder; a dated subfolder is created inside.</span>
+      </div>
+    </section>
+  </section>
+
+</div>
+
+<script>
+/* =======================================================================
+   TAXONOMY — must match the Stage-1 catalog so beat tags score against clips.
+   ======================================================================= */
+const TAG_GROUPS = [
+  { key:'setting', label:'Setting', values:['studio','street','home','rooftop','cafe','nature','transit','stage','gear-closeup'] },
+  { key:'time',    label:'Time',    values:['day','golden-hour','blue-hour','night','indoor'] },
+  { key:'action',  label:'Action',  values:['walking','performing','instrument','hands-on-gear','talk-to-cam','ambient','notebook','reaction'] },
+  { key:'shot',    label:'Shot',    values:['wide','medium','close','extreme-close','low-angle','high-angle','POV','static','handheld'] },
+  { key:'mood',    label:'Mood',    values:['moody','warm','energetic','calm','cinematic'] },
+];
+const TAG_KEYS = TAG_GROUPS.map(g => g.key);
+
+/* Editable matching config */
+const WEIGHTS = { setting:2, time:1, action:2, shot:1, mood:1 };
+const GAP_THRESHOLD = 2;     // best tag-score below this → the beat is "TO FILM"
+const BIG_FILE_BYTES = 300 * 1024 * 1024;   // skip-copy threshold (reference by path instead)
+
+/* =======================================================================
+   PURE-LOGIC-START — no DOM, no FSA. Mirrored by test/assemble.test.mjs.
+   ======================================================================= */
+function pad(n, l){ return String(n).padStart(l, '0'); }
+
+function slugify(s){
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'beat';
+}
+
+function fmtClock(sec){
+  if(sec == null || !isFinite(sec) || sec < 0) sec = 0;
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  const ss = s === 60 ? 0 : s, mm = s === 60 ? m + 1 : m;
+  return mm + ':' + pad(ss, 2);
+}
+
+function srtTimestamp(sec){
+  if(!isFinite(sec) || sec < 0) sec = 0;
+  const ms = Math.round((sec - Math.floor(sec)) * 1000);
+  let s = Math.floor(sec);
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60);  s -= m * 60;
+  return pad(h, 2) + ':' + pad(m, 2) + ':' + pad(s, 2) + ',' + pad(ms, 3);
+}
+
+// Weighted tag overlap between a parsed beat and a catalog clip.
+function scoreClip(beat, clip, weights){
+  let total = 0;
+  for(const g of TAG_GROUPS){
+    const w = (weights && weights[g.key]) || 1;
+    const bt = (beat && beat[g.key]) || [];
+    const ct = (clip && clip.tags && clip.tags[g.key]) || [];
+    if(!bt.length || !ct.length) continue;
+    const have = new Set(ct);
+    let hit = 0;
+    for(const v of bt) if(have.has(v)) hit++;
+    total += hit * w;
+  }
+  return total;
+}
+
+// Rank clips for a beat, best first; drops zero-score clips.
+function rankClips(beat, clips, weights){
+  return clips
+    .map(c => ({ file: c.file, score: scoreClip(beat, c, weights) }))
+    .filter(r => r.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+function isGap(top, threshold){ return !top || top.score < (threshold == null ? GAP_THRESHOLD : threshold); }
+
+// Output filename for an exported clip, in script order.
+function clipOutName(i, beat, ext){
+  const base = slugify((beat.action && beat.action.join('-')) || beat.needDescription || 'beat');
+  return pad(i + 1, 2) + '_' + base + (ext || '.mp4');
+}
+
+function esc(s){ return String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/\n/g, ' '); }
+
+// rows: [{ beat, outName|null }] in script order
+function buildShotlist(rows){
+  const head = '# Shot list\n\n| # | time | clip file | on-screen text | audio / notes |\n|---|---|---|---|---|\n';
+  const body = rows.map((r, i) => {
+    const b = r.beat;
+    const clip = r.outName ? esc(r.outName) : '**TO FILM**';
+    return '| ' + (i + 1) + ' | ' + fmtClock(b.tStart) + '–' + fmtClock(b.tEnd) + ' | ' +
+           clip + ' | ' + esc(b.onScreenText) + ' | ' + esc(b.audioCue) + ' |';
+  }).join('\n');
+  return head + body + '\n';
+}
+
+function buildSrt(beats){
+  const out = [];
+  let n = 0;
+  for(const b of beats){
+    const t = (b.onScreenText || '').trim();
+    if(!t) continue;
+    n++;
+    out.push(n + '\n' + srtTimestamp(b.tStart) + ' --> ' + srtTimestamp(b.tEnd) + '\n' + t + '\n');
+  }
+  return out.join('\n');
+}
+
+function buildMusic(music, beats){
+  let s = '# Music\n\n' + ((music || '').trim() || '(no sound recommendation in script)') + '\n';
+  const cues = beats.filter(b => (b.audioCue || '').trim());
+  if(cues.length){
+    s += '\n## Per-beat audio cues\n\n';
+    s += cues.map(b => '- ' + fmtClock(b.tStart) + ' — ' + b.audioCue.trim()).join('\n') + '\n';
+  }
+  return s;
+}
+
+// gaps: [{ beat }] in script order
+function buildToFilm(gaps){
+  if(!gaps.length) return '# To film\n\nNothing — every beat matched a clip.\n';
+  let s = '# To film\n\n' + gaps.length + ' beat' + (gaps.length > 1 ? 's' : '') + ' need footage.\n';
+  gaps.forEach((g, i) => {
+    const b = g.beat;
+    s += '\n## ' + (i + 1) + '. ' + fmtClock(b.tStart) + '–' + fmtClock(b.tEnd) + '\n';
+    s += '- **Action:** ' + ((b.action && b.action.join(', ')) || b.needDescription || '—') + '\n';
+    s += '- **Where:** ' + ((b.setting && b.setting.join(', ')) || '—') + ' · ' + ((b.time && b.time.join(', ')) || '—') + '\n';
+    s += '- **Shot:** ' + ((b.shot && b.shot.join(', ')) || '—') + '\n';
+    s += '- **On-screen text:** ' + ((b.onScreenText || '').trim() || '—') + '\n';
+    if((b.needDescription || '').trim()) s += '- **Note:** ' + b.needDescription.trim() + '\n';
+  });
+  return s;
+}
+
+// runtime = sum of beat durations; scriptLen = furthest tEnd
+function summarize(beats, assign){
+  let matched = 0, runtime = 0, scriptLen = 0;
+  beats.forEach((b, i) => {
+    if(assign[i] && assign[i].chosen) matched++;
+    const dur = Math.max(0, (b.tEnd || 0) - (b.tStart || 0));
+    runtime += dur;
+    if((b.tEnd || 0) > scriptLen) scriptLen = b.tEnd || 0;
+  });
+  return { beats: beats.length, matched, gaps: beats.length - matched, runtime, scriptLen };
+}
+/* ======================== PURE-LOGIC-END ============================== */
+
+/* ===================== IndexedDB (shared with the catalog) ============ */
+const IDB_NAME = 'mosun-footage', IDB_STORE = 'handles', HANDLE_KEY = 'footageDir';
+function openIDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbGet(key){
+  const db = await openIDB();
+  return new Promise((res, rej) => {
+    const t = db.transaction(IDB_STORE, 'readonly');
+    const rq = t.objectStore(IDB_STORE).get(key);
+    rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+  });
+}
+
+/* ===================== File System Access ============================= */
+const VIDEO_EXT = /\.(mp4|mov|m4v)$/i;
+async function verifyPermission(handle, write){
+  const opts = { mode: write ? 'readwrite' : 'readwrite' };
+  if(await handle.queryPermission(opts) === 'granted') return true;
+  if(await handle.requestPermission(opts) === 'granted') return true;
+  return false;
+}
+async function listVideoHandles(dir){
+  const out = [];
+  for await (const [name, handle] of dir.entries()){
+    if(handle.kind === 'file' && VIDEO_EXT.test(name)) out.push(handle);
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+async function readCatalog(dir){
+  try{
+    const fh = await dir.getFileHandle('catalog.json');
+    const f = await fh.getFile();
+    const j = JSON.parse(await f.text());
+    if(j && Array.isArray(j.clips)) return j;
+  }catch(e){ /* missing */ }
+  return { version: 1, updated: null, clips: [] };
+}
+
+/* ============================ AI key (shared) ======================== */
+const AI_KEY_LS = 'mosun-anthropic-key';
+const AI_MODEL = 'claude-opus-4-8';
+function getKey(){ return localStorage.getItem(AI_KEY_LS) || ''; }
+function renderKeyBar(){
+  const has = !!getKey();
+  $('keySet').classList.toggle('hidden', !has);
+  $('keyBtn').textContent = has ? 'Change key' : 'Set AI key';
+}
+function toggleKeyInput(){
+  const inp = $('keyIn');
+  const opening = inp.classList.contains('hidden');
+  inp.classList.toggle('hidden', !opening);
+  if(opening){ inp.value = ''; inp.focus(); }
+}
+function saveKeyFromInput(){
+  const inp = $('keyIn');
+  const v = inp.value.trim();
+  if(v) localStorage.setItem(AI_KEY_LS, v);
+  inp.value = ''; inp.classList.add('hidden');
+  renderKeyBar();
+  if(v){ setMsg('AI key saved'); setTimeout(() => setMsg(''), 1400); }
+}
+async function claudeJSON(userText, schema, maxTokens){
+  const key = getKey();
+  if(!key) throw new Error('no API key');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: AI_MODEL, max_tokens: maxTokens || 2048,
+      output_config: { format: { type: 'json_schema', schema } },
+      messages: [{ role: 'user', content: userText }],
+    }),
+  });
+  if(!res.ok){ throw new Error('API ' + res.status + ' — ' + (await res.text()).slice(0, 160)); }
+  const data = await res.json();
+  const block = (data.content || []).find(b => b.type === 'text');
+  if(!block) throw new Error('empty response');
+  return JSON.parse(block.text);
+}
+
+/* ============================== State ================================ */
+const state = {
+  dir: null, handles: new Map(), clips: [],
+  beats: [], music: '', assign: [],   // assign[i] = { ranked:[{file,score}], chosen:file|null }
+};
+const $ = id => document.getElementById(id);
+function setMsg(t, err){ const m = $('msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
+function clipByFile(f){ return state.clips.find(c => c.file === f); }
+
+/* ============================ Connect folder ========================= */
+async function connect(dir){
+  if(!(await verifyPermission(dir, true))){ setMsg('Permission denied for that folder.', true); return false; }
+  state.dir = dir;
+  const handles = await listVideoHandles(dir);
+  state.handles = new Map(handles.map(h => [h.name, h]));
+  const cat = await readCatalog(dir);
+  // only keep catalog clips whose file is actually present in the folder
+  state.clips = cat.clips.filter(c => state.handles.has(c.file));
+  $('folderState').classList.remove('hidden');
+  $('intro').classList.add('hidden');
+  const tagged = state.clips.filter(c => TAG_KEYS.some(k => (c.tags[k] || []).length)).length;
+  setMsg(state.clips.length + ' clips in catalog · ' + tagged + ' tagged');
+  setTimeout(() => setMsg(''), 2600);
+  return true;
+}
+async function openFolder(){
+  try{
+    const dir = await window.showDirectoryPicker({ id: 'mosun-footage', mode: 'readwrite' });
+    await connect(dir);
+  }catch(e){ if(e && e.name !== 'AbortError'){ console.error(e); setMsg('Could not open folder.', true); } }
+}
+async function tryRestore(){
+  if(!('showDirectoryPicker' in window)){ setMsg('This needs Chrome (File System Access API).', true); $('folderBtn').disabled = true; return; }
+  let dir; try{ dir = await idbGet(HANDLE_KEY); }catch(e){ return; }
+  if(dir && await dir.queryPermission({ mode: 'readwrite' }) === 'granted'){ await connect(dir); }
+  else if(dir){ setMsg('Reconnect your footage folder →'); $('folderBtn').textContent = 'Reconnect folder'; }
+}
+
+/* ============================== Parse =============================== */
+function parseSchema(){
+  const props = { index: { type: 'integer' }, tStart: { type: 'number' }, tEnd: { type: 'number' } };
+  for(const g of TAG_GROUPS) props[g.key] = { type: 'array', items: { type: 'string', enum: g.values } };
+  props.onScreenText = { type: 'string' };
+  props.audioCue = { type: 'string' };
+  props.needDescription = { type: 'string' };
+  return {
+    type: 'object', additionalProperties: false, required: ['music', 'beats'],
+    properties: {
+      music: { type: 'string' },
+      beats: { type: 'array', items: {
+        type: 'object', additionalProperties: false,
+        required: ['index', 'tStart', 'tEnd', ...TAG_KEYS, 'onScreenText', 'audioCue', 'needDescription'],
+        properties: props,
+      } },
+    },
+  };
+}
+const PARSE_PROMPT =
+  'You are parsing a MOSUN weekly-TikTok script into a timed shot list. The script is shot-by-shot, ' +
+  'usually with [a-bs] timestamps, a camera/action description, a "where", on-screen text overlays, and a sound recommendation. ' +
+  'Split it into beats in script order. For each beat: set tStart/tEnd in SECONDS from the timestamp (estimate if missing, ~2s each). ' +
+  'Map the beat\'s visual qualities to the allowed tag enums for setting, time, action, shot, mood — include only values that clearly apply, ' +
+  'empty arrays are fine. onScreenText = the literal overlay text (empty string if none). audioCue = any per-beat sound note. ' +
+  'needDescription = one short sentence describing what footage this beat needs, to help match a clip library. ' +
+  'music = the overall sound/song recommendation for the video. Return only the structured result.';
+
+async function parseScript(){
+  const script = $('script').value.trim();
+  if(!script){ setMsg('Paste a script first.', true); return; }
+  if(!state.dir){ setMsg('Open your footage folder first.', true); return; }
+  if(!getKey()){ setMsg('Set your AI key first.', true); toggleKeyInput(); return; }
+  const btn = $('parseBtn'); btn.classList.add('busy'); btn.disabled = true;
+  setMsg('Parsing script with Claude…');
+  try{
+    const out = await claudeJSON(PARSE_PROMPT + '\n\nSCRIPT:\n' + script, parseSchema(), 4096);
+    state.music = out.music || '';
+    state.beats = (out.beats || []).map((b, i) => ({ ...b, index: i }));
+    matchAll();
+    if($('rerankChk').checked && state.beats.length){
+      setMsg('Re-ranking matches with Claude…');
+      try{ await rerank(); }catch(e){ console.error(e); setMsg('Re-rank skipped: ' + e.message, true); }
+    }
+    seedProjectName();
+    renderReview();
+    setMsg('Parsed ' + state.beats.length + ' beats'); setTimeout(() => setMsg(''), 2200);
+  }catch(e){ console.error(e); setMsg('Parse failed: ' + e.message, true); }
+  finally{ btn.classList.remove('busy'); btn.disabled = false; }
+}
+
+function matchAll(){
+  state.assign = state.beats.map(b => {
+    const ranked = rankClips(b, state.clips, WEIGHTS);
+    const chosen = (ranked[0] && ranked[0].score >= GAP_THRESHOLD) ? ranked[0].file : null;
+    return { ranked, chosen };
+  });
+}
+
+/* Single batched Claude call to reorder each beat's existing shortlist. */
+async function rerank(){
+  const beatsPayload = state.beats.map((b, i) => ({
+    index: i, onScreenText: b.onScreenText, needDescription: b.needDescription,
+    tags: TAG_KEYS.reduce((o, k) => (o[k] = b[k], o), {}),
+    candidates: state.assign[i].ranked.slice(0, 6).map(r => {
+      const c = clipByFile(r.file) || {};
+      return { file: r.file, score: r.score, tags: c.tags, notes: c.notes || '' };
+    }),
+  })).filter(p => p.candidates.length > 1);   // nothing to reorder otherwise
+  if(!beatsPayload.length) return;
+
+  const schema = {
+    type: 'object', additionalProperties: false, required: ['picks'],
+    properties: { picks: { type: 'array', items: {
+      type: 'object', additionalProperties: false, required: ['index', 'order'],
+      properties: { index: { type: 'integer' }, order: { type: 'array', items: { type: 'string' } } },
+    } } },
+  };
+  const prompt =
+    'For each beat, reorder its candidate clips best-first for how well the clip fits the beat\'s ' +
+    'needDescription, on-screen text, and tags. Use ONLY the candidate filenames given for that beat; ' +
+    'return them all, just reordered. Respond as {picks:[{index, order:[filenames…]}]}.\n\n' +
+    JSON.stringify(beatsPayload);
+  const out = await claudeJSON(prompt, schema, 4096);
+
+  for(const pick of (out.picks || [])){
+    const a = state.assign[pick.index];
+    if(!a) continue;
+    const have = new Map(a.ranked.map(r => [r.file, r]));
+    const reordered = [];
+    for(const f of (pick.order || [])) if(have.has(f)){ reordered.push(have.get(f)); have.delete(f); }
+    for(const r of a.ranked) if(have.has(r.file)) reordered.push(r);   // keep any the model dropped
+    a.ranked = reordered;
+    a.chosen = (reordered[0] && reordered[0].score >= GAP_THRESHOLD) ? reordered[0].file : a.chosen;
+  }
+}
+
+/* ============================== Review UI =========================== */
+let posterObserver = null;
+function renderReview(){
+  $('review').classList.remove('hidden');
+  renderSummary();
+  renderGaps();
+  const wrap = $('beats'); wrap.innerHTML = '';
+  if(posterObserver) posterObserver.disconnect();
+  posterObserver = new IntersectionObserver(onPosterVisible, { rootMargin: '400px' });
+
+  state.beats.forEach((b, i) => {
+    const a = state.assign[i];
+    const gap = !a.chosen;
+    const card = document.createElement('div');
+    card.className = 'beat' + (gap ? ' gap' : '');
+    card.dataset.i = i;
+
+    const tags = TAG_KEYS.flatMap(k => (b[k] || []).map(v => '<span class="tag">' + escapeHtml(v) + '</span>')).join('');
+    const opts = a.ranked.map(r =>
+      '<option value="' + escapeHtml(r.file) + '"' + (r.file === a.chosen ? ' selected' : '') + '>' +
+      escapeHtml(r.file) + ' · ' + r.score + '</option>').join('');
+    const gapSel = '<option value=""' + (gap ? ' selected' : '') + '>— TO FILM —</option>';
+
+    card.innerHTML =
+      '<div class="thumb" data-file="' + escapeHtml(a.chosen || '') + '">' +
+        (gap ? '<span class="tofilm">TO FILM</span>' : '<span class="ph">loading…</span>') +
+      '</div>' +
+      '<div class="body">' +
+        '<div class="head"><span class="idx">' + pad(i + 1, 2) + '</span>' +
+          '<span class="time">' + fmtClock(b.tStart) + '–' + fmtClock(b.tEnd) + '</span></div>' +
+        '<div class="ost">' + escapeHtml(b.onScreenText || '') + '</div>' +
+        (b.needDescription ? '<div class="meta"><b>Needs:</b> ' + escapeHtml(b.needDescription) + '</div>' : '') +
+        (b.audioCue ? '<div class="meta"><b>Audio:</b> ' + escapeHtml(b.audioCue) + '</div>' : '') +
+        '<div class="tags">' + tags + '</div>' +
+        '<div class="swap"><select class="' + (gap ? 'tofilm' : '') + '">' + gapSel + opts + '</select></div>' +
+      '</div>';
+
+    const sel = card.querySelector('select');
+    sel.addEventListener('change', () => onSwap(i, sel.value, card, sel));
+    wrap.appendChild(card);
+    if(a.chosen) posterObserver.observe(card);
+  });
+}
+
+function onSwap(i, file, card, sel){
+  state.assign[i].chosen = file || null;
+  const gap = !file;
+  card.classList.toggle('gap', gap);
+  sel.classList.toggle('tofilm', gap);
+  const thumb = card.querySelector('.thumb');
+  thumb.dataset.file = file || '';
+  thumb.innerHTML = gap ? '<span class="tofilm">TO FILM</span>' : '<span class="ph">loading…</span>';
+  if(!gap){ posterObserver.observe(card); }
+  renderSummary(); renderGaps();
+}
+
+function renderSummary(){
+  const s = summarize(state.beats, state.assign);
+  $('cBeats').textContent = s.beats;
+  $('cMatched').textContent = s.matched;
+  $('cGaps').textContent = s.gaps;
+  $('summary').innerHTML =
+    stat(s.matched, 'matched') + stat(s.gaps, 'to film', true) +
+    stat(fmtClock(s.runtime), 'cut runtime') + stat(fmtClock(s.scriptLen), 'script length');
+}
+function stat(num, cap, gap){
+  return '<div class="stat"><div class="num' + (gap ? ' gap' : '') + '">' + escapeHtml(num) + '</div><div class="cap">' + cap + '</div></div>';
+}
+function renderGaps(){
+  const gaps = state.beats.map((b, i) => ({ b, i })).filter(x => !state.assign[x.i].chosen);
+  const el = $('gaps');
+  if(!gaps.length){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML = '<h3>Gaps to film — ' + gaps.length + '</h3><ul>' +
+    gaps.map(x => '<li><span class="gt">' + fmtClock(x.b.tStart) + '</span>' +
+      escapeHtml((x.b.action && x.b.action.join(', ')) || x.b.needDescription || 'shot') +
+      (x.b.onScreenText ? ' — “' + escapeHtml(x.b.onScreenText) + '”' : '') + '</li>').join('') + '</ul>';
+}
+
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* lazy poster frame for a beat's chosen clip */
+async function onPosterVisible(entries, obs){
+  for(const e of entries){
+    if(!e.isIntersecting) continue;
+    obs.unobserve(e.target);
+    const thumb = e.target.querySelector('.thumb');
+    const file = thumb && thumb.dataset.file;
+    if(file) makePoster(file, thumb);
+  }
+}
+async function makePoster(file, thumbEl){
+  const handle = state.handles.get(file);
+  if(!handle) return;
+  let url;
+  try{
+    url = URL.createObjectURL(await handle.getFile());
+    const v = document.createElement('video');
+    v.muted = true; v.preload = 'metadata'; v.src = url; v.playsInline = true;
+    await once(v, 'loadedmetadata');
+    v.currentTime = Math.min(1, (v.duration || 2) / 2);
+    await once(v, 'seeked');
+    const canvas = document.createElement('canvas');
+    const w = 360, h = Math.round(w * (v.videoHeight / v.videoWidth || 16 / 9));
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(v, 0, 0, w, h);
+    if(thumbEl.dataset.file === file){ thumbEl.innerHTML = ''; thumbEl.appendChild(canvas); }
+  }catch(err){ const ph = thumbEl.querySelector('.ph'); if(ph) ph.textContent = 'no preview'; }
+  finally{ if(url) URL.revokeObjectURL(url); }
+}
+function once(el, ev){ return new Promise((res, rej) => {
+  const ok = () => { cleanup(); res(); }, bad = () => { cleanup(); rej(new Error(ev + ' failed')); };
+  const cleanup = () => { el.removeEventListener(ev, ok); el.removeEventListener('error', bad); };
+  el.addEventListener(ev, ok, { once: true }); el.addEventListener('error', bad, { once: true });
+}); }
+
+/* ============================== Export ============================== */
+function seedProjectName(){
+  if($('projName').value.trim()) return;
+  const firstLine = ($('script').value.split('\n').find(l => l.trim()) || 'mosun-video').replace(/\[[^\]]*\]/g, '');
+  $('projName').value = slugify(firstLine);
+}
+function todayStr(){
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+async function writeText(dir, name, text){
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable(); await w.write(text); await w.close();
+}
+
+async function exportPackage(){
+  if(!state.beats.length){ setMsg('Parse a script first.', true); return; }
+  const slug = slugify($('projName').value) || 'mosun-video';
+  let parent;
+  try{ parent = await window.showDirectoryPicker({ id: 'mosun-projects', mode: 'readwrite' }); }
+  catch(e){ if(e && e.name !== 'AbortError'){ setMsg('Could not open folder.', true); } return; }
+  if(!(await verifyPermission(parent, true))){ setMsg('Permission denied.', true); return; }
+
+  const btn = $('exportBtn'); btn.classList.add('busy'); btn.disabled = true;
+  try{
+    const folderName = todayStr() + '__' + slug;
+    const proj = await parent.getDirectoryHandle(folderName, { create: true });
+
+    // ordered clips + shotlist rows
+    const rows = [];
+    const notes = [];
+    let copied = 0, n = 0;
+    for(let i = 0; i < state.beats.length; i++){
+      const b = state.beats[i], chosen = state.assign[i].chosen;
+      if(!chosen){ rows.push({ beat: b, outName: null }); continue; }
+      n++;
+      setMsg('Copying ' + n + '… ' + chosen);
+      const handle = state.handles.get(chosen);
+      const srcExt = (chosen.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+      const outName = clipOutName(i, b, srcExt);
+      try{
+        const f = await handle.getFile();
+        if(f.size > BIG_FILE_BYTES){
+          notes.push(outName + ' — source ' + Math.round(f.size / 1048576) + ' MB > 300 MB, referenced not copied: ' + chosen);
+          rows.push({ beat: b, outName: chosen + '  (not copied — large; in footage folder)' });
+        }else{
+          const w = await (await proj.getFileHandle(outName, { create: true })).createWritable();
+          await w.write(f); await w.close();
+          rows.push({ beat: b, outName });
+          copied++;
+        }
+      }catch(err){ console.error(err); rows.push({ beat: b, outName: chosen + '  (copy failed)' }); }
+    }
+
+    const gaps = state.beats.map(b => ({ beat: b })).filter((_, i) => !state.assign[i].chosen);
+    let shotlist = buildShotlist(rows);
+    if(notes.length) shotlist += '\n> Large-file notes:\n' + notes.map(x => '> - ' + x).join('\n') + '\n';
+
+    await writeText(proj, 'shotlist.md', shotlist);
+    await writeText(proj, 'captions.srt', buildSrt(state.beats));
+    await writeText(proj, 'MUSIC.txt', buildMusic(state.music, state.beats));
+    await writeText(proj, 'TO-FILM.md', buildToFilm(gaps));
+
+    setMsg('Exported ' + folderName + ' — ' + copied + ' clips, ' + gaps.length + ' to film ✓', false);
+  }catch(e){ console.error(e); setMsg('Export failed: ' + e.message, true); }
+  finally{ btn.classList.remove('busy'); btn.disabled = false; }
+}
+
+/* ============================== Wire-up ============================== */
+$('folderBtn').addEventListener('click', openFolder);
+$('parseBtn').addEventListener('click', parseScript);
+$('exportBtn').addEventListener('click', exportPackage);
+$('keyBtn').addEventListener('click', toggleKeyInput);
+$('keyIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); saveKeyFromInput(); } });
+$('keyIn').addEventListener('blur', () => { const inp = $('keyIn'); if(inp.value.trim()) saveKeyFromInput(); else inp.classList.add('hidden'); });
+$('loadBtn').addEventListener('click', async () => {
+  try{
+    const [h] = await window.showOpenFilePicker({ types: [{ description: 'Script', accept: { 'text/plain': ['.txt', '.md'] } }] });
+    $('script').value = await (await h.getFile()).text();
+    setMsg('Script loaded'); setTimeout(() => setMsg(''), 1400);
+  }catch(e){ if(e && e.name !== 'AbortError'){ setMsg('Could not load file.', true); } }
+});
+
+renderKeyBar();
+tryRestore();
+</script>
+</body>
+</html>
