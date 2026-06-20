@@ -104,6 +104,17 @@ input.txt:focus{ border-color:var(--saffron); }
 .gaps li{ font-size:13px; color:var(--n2); }
 .gaps li .gt{ color:var(--n3); font-variant-numeric:tabular-nums; margin-right:8px; }
 
+.numin{ width:64px; font-family:var(--font-body); font-size:13px; color:var(--cream); background:#0a0a0a;
+  border:1px solid var(--border-strong); border-radius:var(--r-input); padding:6px 8px; outline:none; text-align:center; }
+.numin:focus{ border-color:var(--saffron); }
+.handlebar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px; font-size:12px; letter-spacing:0.04em; color:var(--n2); }
+.beat .scrubwrap{ margin-top:6px; }
+.beat .scrub{ width:100%; accent-color:var(--saffron); height:3px; }
+.beat .scrub:disabled{ opacity:.35; }
+.beat .scrublab{ font-size:11px; letter-spacing:0.06em; color:var(--n3); margin-top:5px; font-variant-numeric:tabular-nums; }
+.beat .scrublab b{ color:var(--saffron); font-weight:400; }
+input[type=radio]{ accent-color:var(--saffron); }
+
 .exportbar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
 .muted{ color:var(--n4); font-size:12px; letter-spacing:0.04em; }
 .emptynote{ color:var(--n4); font-family:var(--font-quote); font-style:italic; font-size:18px; padding:24px 0; }
@@ -160,17 +171,23 @@ input.txt:focus{ border-color:var(--saffron); }
   <section id="review" class="hidden">
     <div class="summary" id="summary"></div>
     <div class="gaps hidden" id="gaps"></div>
-    <div class="label">2 &middot; Review &amp; swap</div>
+    <div class="label">2 &middot; Review, scrub in-points &amp; swap</div>
+    <div class="handlebar">
+      <span>Handle</span>
+      <input class="numin" id="handleIn" type="number" min="0" max="10" step="0.5" value="1.5">
+      <span>seconds of padding added before &amp; after every beat (clamped to each clip).</span>
+    </div>
     <div id="beats"></div>
     <div class="label" style="margin-top:32px">3 &middot; Export</div>
     <section class="panel">
-      <div class="row" style="margin-bottom:16px">
+      <div class="row" style="margin-bottom:16px; gap:20px; flex-wrap:wrap">
         <input class="txt" id="projName" placeholder="project name (slug)">
-        <span class="muted" id="projHint"></span>
+        <label class="toggle" style="text-transform:none; letter-spacing:0"><input type="radio" name="exmode" id="modePre" checked> Pre-cut with handles</label>
+        <label class="toggle" style="text-transform:none; letter-spacing:0"><input type="radio" name="exmode" id="modeFull"> Full clips</label>
       </div>
       <div class="exportbar">
         <button class="btn primary" id="exportBtn">Export package…</button>
-        <span class="muted">Pick a parent folder; a dated subfolder is created inside.</span>
+        <span class="muted" id="exportHint">Copies sources + a double-clickable build.command that ffmpeg-trims them. Pick a parent folder; a dated subfolder is created inside.</span>
       </div>
     </section>
   </section>
@@ -246,11 +263,13 @@ function rankClips(beat, clips, weights){
 
 function isGap(top, threshold){ return !top || top.score < (threshold == null ? GAP_THRESHOLD : threshold); }
 
-// Output filename for an exported clip, in script order.
-function clipOutName(i, beat, ext){
-  const base = slugify((beat.action && beat.action.join('-')) || beat.needDescription || 'beat');
-  return pad(i + 1, 2) + '_' + base + (ext || '.mp4');
+// Ordered, slugged base name (no extension), e.g. "01_walking".
+function beatBase(i, beat){
+  const s = slugify((beat.action && beat.action.join('-')) || beat.needDescription || 'beat');
+  return pad(i + 1, 2) + '_' + s;
 }
+// Output filename for an exported clip, in script order.
+function clipOutName(i, beat, ext){ return beatBase(i, beat) + (ext || '.mp4'); }
 
 function esc(s){ return String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/\n/g, ' '); }
 
@@ -314,6 +333,115 @@ function summarize(beats, assign){
     if((b.tEnd || 0) > scriptLen) scriptLen = b.tEnd || 0;
   });
   return { beats: beats.length, matched, gaps: beats.length - matched, runtime, scriptLen };
+}
+
+// --- Stage 2.1: pre-cut with handles ---
+function clamp(x, lo, hi){ return x < lo ? lo : (x > hi ? hi : x); }
+function round3(x){ return Math.round((x || 0) * 1000) / 1000; }
+function fmt3(x){ return round3(x).toFixed(3); }
+function shq(s){ return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
+
+// Trim window for a beat: [in − handle, in + beatDur + handle], clamped to the
+// clip's bounds. Also returns the "clean" beat marks INSIDE the handled clip.
+function computeCut(beat, clip, inPoint, handle){
+  const D = (clip && clip.duration) || 0;
+  const H = Math.max(0, handle || 0);
+  const beatDur = Math.max(0, (beat.tEnd || 0) - (beat.tStart || 0));
+  const maxIn = D > 0 ? Math.max(0, D - beatDur) : 0;        // keep the beat inside the clip
+  const inPt = D > 0 ? clamp(inPoint || 0, 0, maxIn) : Math.max(0, inPoint || 0);
+  const trimStart = D > 0 ? clamp(inPt - H, 0, D) : Math.max(0, inPt - H);
+  const trimEnd   = D > 0 ? clamp(inPt + beatDur + H, 0, D) : (inPt + beatDur + H);
+  const handledDur = Math.max(0, trimEnd - trimStart);
+  const cleanIn = inPt - trimStart;                          // beat start within handled clip
+  const cleanOut = Math.min(cleanIn + beatDur, handledDur);  // beat end within handled clip
+  return {
+    srcDuration: round3(D), beatDur: round3(beatDur), inPoint: round3(inPt), handle: round3(H),
+    trimStart: round3(trimStart), trimEnd: round3(trimEnd), handledDur: round3(handledDur),
+    cleanIn: round3(cleanIn), cleanOut: round3(cleanOut),
+  };
+}
+
+// rows: [{ beat, outName, srcOriginal, cut } | { beat, cut:null }]
+function buildPrecutShotlist(rows){
+  const head = '# Shot list (pre-cut + handles)\n\n' +
+    'Run `chmod +x build.command` once, then double-click `build.command` to create the trimmed clips.\n\n' +
+    '| # | time | output | source | in-pt | beat | handle | clean trim (in→out in clip) | on-screen text | audio |\n' +
+    '|---|---|---|---|---|---|---|---|---|---|\n';
+  const body = rows.map((r, i) => {
+    const b = r.beat;
+    if(!r.cut){
+      return '| ' + (i + 1) + ' | ' + fmtClock(b.tStart) + '–' + fmtClock(b.tEnd) +
+        ' | **TO FILM** |  |  |  |  |  | ' + esc(b.onScreenText) + ' | ' + esc(b.audioCue) + ' |';
+    }
+    const c = r.cut;
+    return '| ' + (i + 1) + ' | ' + fmtClock(b.tStart) + '–' + fmtClock(b.tEnd) + ' | ' + esc(r.outName) +
+      ' | ' + esc(r.srcOriginal) + ' | ' + c.inPoint.toFixed(2) + 's | ' + c.beatDur.toFixed(2) + 's | ' +
+      c.handle.toFixed(2) + 's | ' + c.cleanIn.toFixed(2) + 's → ' + c.cleanOut.toFixed(2) + 's | ' +
+      esc(b.onScreenText) + ' | ' + esc(b.audioCue) + ' |';
+  }).join('\n');
+  return head + body + '\n';
+}
+
+// cuts: [{ outName, source, srcOriginal, trimStart, handledDur, cleanIn, cleanOut }]
+// missing: [{ srcOriginal, reason }]
+function buildBuildCommand(cuts, missing){
+  const L = [];
+  L.push('#!/bin/bash');
+  L.push('# MOSUN pre-cut — double-click to trim each clip to its script beat (with handles).');
+  L.push('# Re-encodes with VideoToolbox H.264 → frame-accurate + CapCut-friendly. Light, short clips only.');
+  L.push('set -o pipefail');   // not nounset: macOS bash 3.2 treats empty-array expansion as unbound
+  L.push('cd "$(dirname "$0")"');
+  L.push('');
+  L.push('if ! command -v ffmpeg >/dev/null 2>&1; then');
+  L.push('  echo "ffmpeg is required and was not found."');
+  L.push('  echo "Install it once with:"');
+  L.push('  echo "    brew install ffmpeg"');
+  L.push('  echo "Then double-click this file again."');
+  L.push('  exit 0');
+  L.push('fi');
+  L.push('');
+  L.push('PREVIEW=0');
+  L.push('[ "${1:-}" = "--preview" ] && PREVIEW=1');
+  L.push('');
+  L.push('ENC=(-c:v h264_videotoolbox -b:v 8M -c:a aac -pix_fmt yuv420p -movflags +faststart)');
+  L.push('trim () { ffmpeg -hide_banner -loglevel error -y -ss "$2" -i "$1" -t "$3" "${ENC[@]}" "$4" </dev/null && echo "  done: $4"; }');
+  L.push('');
+  L.push('echo "Pre-cutting ' + cuts.length + ' clip(s)…"');
+  for(const c of cuts){
+    L.push('trim "source/' + c.source + '" ' + fmt3(c.trimStart) + ' ' + fmt3(c.handledDur) + ' ' + shq(c.outName) +
+      '   # beat sits at ' + fmt3(c.cleanIn) + '–' + fmt3(c.cleanOut) + ' inside this clip');
+  }
+  for(const m of (missing || [])){
+    L.push('echo "  skipped (' + (m.reason || 'missing source') + '): ' + (m.srcOriginal || '') + '"');
+  }
+  L.push('');
+  L.push('echo "Done — trimmed clips are in this folder. Drag into CapCut; import captions.srt; add music from MUSIC.txt."');
+  L.push('');
+  L.push('if [ "$PREVIEW" = 1 ]; then');
+  L.push('  echo "Rendering preview.mp4 (approximate; music not included)…"');
+  L.push('  rm -f _seg_*.mp4 _concat.txt');
+  cuts.forEach((c, i) => {
+    const seg = '_seg_' + pad(i + 1, 2) + '.mp4';
+    const segDur = Math.max(0, (c.cleanOut || 0) - (c.cleanIn || 0));
+    L.push('  ffmpeg -hide_banner -loglevel error -y -ss ' + fmt3(c.cleanIn) + ' -i ' + shq(c.outName) +
+      ' -t ' + fmt3(segDur) + ' "${ENC[@]}" ' + seg + ' </dev/null');
+    L.push('  echo "file ' + "'" + seg + "'" + '" >> _concat.txt');
+  });
+  L.push('  SUBARGS=()');
+  L.push('  if [ -f captions.srt ] && ffmpeg -hide_banner -filters 2>/dev/null | grep -q "[[:space:]]subtitles[[:space:]]"; then');
+  L.push('    SUBARGS=(-vf "subtitles=captions.srt")');
+  L.push('  else');
+  L.push('    echo "  (captions not burned — this ffmpeg has no subtitles filter; they are in captions.srt for CapCut)"');
+  L.push('  fi');
+  L.push('  if ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i _concat.txt "${SUBARGS[@]}" "${ENC[@]}" preview.mp4 </dev/null; then');
+  L.push('    echo "preview.mp4 ready (add music in CapCut)."');
+  L.push('  else');
+  L.push('    echo "preview render failed — the trimmed clips above are still fine."');
+  L.push('  fi');
+  L.push('  rm -f _seg_*.mp4 _concat.txt');
+  L.push('fi');
+  L.push('');
+  return L.join('\n');
 }
 /* ======================== PURE-LOGIC-END ============================== */
 
@@ -412,7 +540,7 @@ async function claudeJSON(userText, schema, maxTokens){
 /* ============================== State ================================ */
 const state = {
   dir: null, handles: new Map(), clips: [],
-  beats: [], music: '', assign: [],   // assign[i] = { ranked:[{file,score}], chosen:file|null }
+  beats: [], music: '', assign: [], handle: 1.5,   // assign[i] = { ranked, chosen, inPoint }
 };
 const $ = id => document.getElementById(id);
 function setMsg(t, err){ const m = $('msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
@@ -502,7 +630,7 @@ function matchAll(){
   state.assign = state.beats.map(b => {
     const ranked = rankClips(b, state.clips, WEIGHTS);
     const chosen = (ranked[0] && ranked[0].score >= GAP_THRESHOLD) ? ranked[0].file : null;
-    return { ranked, chosen };
+    return { ranked, chosen, inPoint: 0 };
   });
 }
 
@@ -579,23 +707,61 @@ function renderReview(){
         (b.audioCue ? '<div class="meta"><b>Audio:</b> ' + escapeHtml(b.audioCue) + '</div>' : '') +
         '<div class="tags">' + tags + '</div>' +
         '<div class="swap"><select class="' + (gap ? 'tofilm' : '') + '">' + gapSel + opts + '</select></div>' +
+        '<div class="scrubwrap"></div>' +
       '</div>';
 
     const sel = card.querySelector('select');
     sel.addEventListener('change', () => onSwap(i, sel.value, card, sel));
     wrap.appendChild(card);
+    fillScrub(i);
     if(a.chosen) posterObserver.observe(card);
   });
 }
 
+// per-beat in-point scrubber on the chosen clip
+function fillScrub(i){
+  const a = state.assign[i];
+  const card = document.querySelector('.beat[data-i="' + i + '"]');
+  if(!card) return;
+  const wrap = card.querySelector('.scrubwrap');
+  if(!a.chosen){ wrap.innerHTML = ''; return; }
+  const b = state.beats[i];
+  const clip = clipByFile(a.chosen) || {};
+  const beatDur = Math.max(0, (b.tEnd || 0) - (b.tStart || 0));
+  const D = clip.duration || 0;
+  const maxIn = D > 0 ? Math.max(0, D - beatDur) : 0;
+  a.inPoint = Math.min(a.inPoint || 0, maxIn);
+  const dis = maxIn <= 0 ? ' disabled' : '';
+  wrap.innerHTML =
+    '<input type="range" class="scrub" min="0" max="' + maxIn.toFixed(2) + '" step="0.1" value="' + a.inPoint.toFixed(2) + '"' + dis + '>' +
+    '<div class="scrublab"></div>';
+  const range = wrap.querySelector('.scrub');
+  range.addEventListener('input', () => { state.assign[i].inPoint = parseFloat(range.value) || 0; updateScrubLab(i); });
+  range.addEventListener('change', () => { const t = card.querySelector('.thumb'); if(t) makePoster(a.chosen, t, state.assign[i].inPoint); });
+  updateScrubLab(i);
+}
+function updateScrubLab(i){
+  const lab = document.querySelector('.beat[data-i="' + i + '"] .scrublab');
+  if(!lab) return;
+  const a = state.assign[i], b = state.beats[i];
+  if(!a.chosen){ lab.textContent = ''; return; }
+  const clip = clipByFile(a.chosen) || {};
+  const c = computeCut(b, clip, a.inPoint || 0, state.handle);
+  lab.innerHTML = 'in <b>' + c.inPoint.toFixed(1) + 's</b> · beat ' + c.beatDur.toFixed(1) + 's · handle ' +
+    state.handle.toFixed(1) + 's · clip cut ' + c.trimStart.toFixed(1) + '–' + c.trimEnd.toFixed(1) + 's' +
+    (clip.duration ? '' : ' · duration loads with preview');
+}
+
 function onSwap(i, file, card, sel){
   state.assign[i].chosen = file || null;
+  state.assign[i].inPoint = 0;                 // new clip → reset in-point
   const gap = !file;
   card.classList.toggle('gap', gap);
   sel.classList.toggle('tofilm', gap);
   const thumb = card.querySelector('.thumb');
   thumb.dataset.file = file || '';
   thumb.innerHTML = gap ? '<span class="tofilm">TO FILM</span>' : '<span class="ph">loading…</span>';
+  fillScrub(i);
   if(!gap){ posterObserver.observe(card); }
   renderSummary(); renderGaps();
 }
@@ -635,7 +801,7 @@ async function onPosterVisible(entries, obs){
     if(file) makePoster(file, thumb);
   }
 }
-async function makePoster(file, thumbEl){
+async function makePoster(file, thumbEl, atTime){
   const handle = state.handles.get(file);
   if(!handle) return;
   let url;
@@ -644,7 +810,16 @@ async function makePoster(file, thumbEl){
     const v = document.createElement('video');
     v.muted = true; v.preload = 'metadata'; v.src = url; v.playsInline = true;
     await once(v, 'loadedmetadata');
-    v.currentTime = Math.min(1, (v.duration || 2) / 2);
+    // first time we learn a clip's real duration, store it + refresh its scrubber bounds
+    const clip = clipByFile(file);
+    if(clip && !clip.duration && isFinite(v.duration)){
+      clip.duration = Math.round(v.duration * 10) / 10;
+      const card = thumbEl.closest('.beat');
+      if(card) fillScrub(+card.dataset.i);
+    }
+    v.currentTime = (atTime != null)
+      ? Math.min(Math.max(0, atTime), Math.max(0, (v.duration || 0) - 0.05))
+      : Math.min(1, (v.duration || 2) / 2);
     await once(v, 'seeked');
     const canvas = document.createElement('canvas');
     const w = 360, h = Math.round(w * (v.videoHeight / v.videoWidth || 16 / 9));
@@ -687,45 +862,88 @@ async function exportPackage(){
   try{
     const folderName = todayStr() + '__' + slug;
     const proj = await parent.getDirectoryHandle(folderName, { create: true });
-
-    // ordered clips + shotlist rows
-    const rows = [];
-    const notes = [];
-    let copied = 0, n = 0;
-    for(let i = 0; i < state.beats.length; i++){
-      const b = state.beats[i], chosen = state.assign[i].chosen;
-      if(!chosen){ rows.push({ beat: b, outName: null }); continue; }
-      n++;
-      setMsg('Copying ' + n + '… ' + chosen);
-      const handle = state.handles.get(chosen);
-      const srcExt = (chosen.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
-      const outName = clipOutName(i, b, srcExt);
-      try{
-        const f = await handle.getFile();
-        if(f.size > BIG_FILE_BYTES){
-          notes.push(outName + ' — source ' + Math.round(f.size / 1048576) + ' MB > 300 MB, referenced not copied: ' + chosen);
-          rows.push({ beat: b, outName: chosen + '  (not copied — large; in footage folder)' });
-        }else{
-          const w = await (await proj.getFileHandle(outName, { create: true })).createWritable();
-          await w.write(f); await w.close();
-          rows.push({ beat: b, outName });
-          copied++;
-        }
-      }catch(err){ console.error(err); rows.push({ beat: b, outName: chosen + '  (copy failed)' }); }
-    }
-
-    const gaps = state.beats.map(b => ({ beat: b })).filter((_, i) => !state.assign[i].chosen);
-    let shotlist = buildShotlist(rows);
-    if(notes.length) shotlist += '\n> Large-file notes:\n' + notes.map(x => '> - ' + x).join('\n') + '\n';
-
-    await writeText(proj, 'shotlist.md', shotlist);
-    await writeText(proj, 'captions.srt', buildSrt(state.beats));
-    await writeText(proj, 'MUSIC.txt', buildMusic(state.music, state.beats));
-    await writeText(proj, 'TO-FILM.md', buildToFilm(gaps));
-
-    setMsg('Exported ' + folderName + ' — ' + copied + ' clips, ' + gaps.length + ' to film ✓', false);
+    if($('modePre').checked) await exportPrecut(proj, folderName);
+    else await exportFull(proj, folderName);
   }catch(e){ console.error(e); setMsg('Export failed: ' + e.message, true); }
   finally{ btn.classList.remove('busy'); btn.disabled = false; }
+}
+
+// Full-clip export (Stage 2 original): copy whole source clips, no trimming.
+async function exportFull(proj, folderName){
+  const rows = [], notes = [];
+  let copied = 0, n = 0;
+  for(let i = 0; i < state.beats.length; i++){
+    const b = state.beats[i], chosen = state.assign[i].chosen;
+    if(!chosen){ rows.push({ beat: b, outName: null }); continue; }
+    n++; setMsg('Copying ' + n + '… ' + chosen);
+    const handle = state.handles.get(chosen);
+    const srcExt = (chosen.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+    const outName = clipOutName(i, b, srcExt);
+    try{
+      const f = await handle.getFile();
+      if(f.size > BIG_FILE_BYTES){
+        notes.push(outName + ' — source ' + Math.round(f.size / 1048576) + ' MB > 300 MB, referenced not copied: ' + chosen);
+        rows.push({ beat: b, outName: chosen + '  (not copied — large; in footage folder)' });
+      }else{
+        const w = await (await proj.getFileHandle(outName, { create: true })).createWritable();
+        await w.write(f); await w.close();
+        rows.push({ beat: b, outName }); copied++;
+      }
+    }catch(err){ console.error(err); rows.push({ beat: b, outName: chosen + '  (copy failed)' }); }
+  }
+  const gaps = state.beats.map(b => ({ beat: b })).filter((_, i) => !state.assign[i].chosen);
+  let shotlist = buildShotlist(rows);
+  if(notes.length) shotlist += '\n> Large-file notes:\n' + notes.map(x => '> - ' + x).join('\n') + '\n';
+  await writeText(proj, 'shotlist.md', shotlist);
+  await writeText(proj, 'captions.srt', buildSrt(state.beats));
+  await writeText(proj, 'MUSIC.txt', buildMusic(state.music, state.beats));
+  await writeText(proj, 'TO-FILM.md', buildToFilm(gaps));
+  setMsg('Exported ' + folderName + ' (full clips) — ' + copied + ' clips, ' + gaps.length + ' to film ✓', false);
+}
+
+// Pre-cut export (Stage 2.1): copy sources into source/, emit build.command +
+// cuts.json so a local ffmpeg run trims each to its beat with handles.
+async function exportPrecut(proj, folderName){
+  const srcDir = await proj.getDirectoryHandle('source', { create: true });
+  const cuts = [], rows = [], manifest = [], missing = [];
+  let n = 0;
+  for(let i = 0; i < state.beats.length; i++){
+    const b = state.beats[i], a = state.assign[i], chosen = a.chosen;
+    if(!chosen){ rows.push({ beat: b, cut: null }); continue; }
+    const clip = clipByFile(chosen) || {};
+    const cut = computeCut(b, clip, a.inPoint || 0, state.handle);
+    const handle = state.handles.get(chosen);
+    const srcExt = (chosen.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+    const base = beatBase(i, b);                 // "01_walking" (no extension)
+    const sourceName = base + srcExt;            // copied into source/, e.g. 01_walking.MOV
+    const outName = base + '.mp4';               // trimmed output, e.g. 01_walking.mp4
+    if(!handle){ missing.push({ srcOriginal: chosen, reason: 'not in folder' }); rows.push({ beat: b, cut: null }); continue; }
+    n++; setMsg('Copying source ' + n + '… ' + chosen);
+    try{
+      const f = await handle.getFile();
+      const w = await (await srcDir.getFileHandle(sourceName, { create: true })).createWritable();
+      await w.write(f); await w.close();
+      cuts.push({ outName, source: sourceName, srcOriginal: chosen,
+                  trimStart: cut.trimStart, handledDur: cut.handledDur, cleanIn: cut.cleanIn, cleanOut: cut.cleanOut });
+      rows.push({ beat: b, outName, srcOriginal: chosen, cut });
+      manifest.push({ index: i, outName, source: sourceName, srcOriginal: chosen, ...cut });
+    }catch(err){ console.error(err); missing.push({ srcOriginal: chosen, reason: 'copy failed' }); rows.push({ beat: b, cut: null }); }
+  }
+
+  const scoreGaps = state.beats.map(b => ({ beat: b })).filter((_, i) => !state.assign[i].chosen);
+  await writeText(proj, 'build.command', buildBuildCommand(cuts, missing));
+  await writeText(proj, 'cuts.json', JSON.stringify(
+    { version: 1, project: folderName, handle: state.handle, cuts: manifest, missing }, null, 2));
+  await writeText(proj, 'shotlist.md', buildPrecutShotlist(rows));
+  await writeText(proj, 'captions.srt', buildSrt(state.beats));
+  await writeText(proj, 'MUSIC.txt', buildMusic(state.music, state.beats));
+  let toFilm = buildToFilm(scoreGaps);
+  if(missing.length) toFilm += '\n## Missing sources (matched but file absent)\n\n' +
+    missing.map(m => '- ' + m.srcOriginal + ' — ' + m.reason).join('\n') + '\n';
+  await writeText(proj, 'TO-FILM.md', toFilm);
+
+  setMsg('Exported ' + folderName + ' — ' + cuts.length + ' to trim, ' + scoreGaps.length + ' to film. ' +
+    'In Terminal: chmod +x build.command (once), then double-click it. ✓', false);
 }
 
 /* ============================== Wire-up ============================== */
@@ -735,6 +953,15 @@ $('exportBtn').addEventListener('click', exportPackage);
 $('keyBtn').addEventListener('click', toggleKeyInput);
 $('keyIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); saveKeyFromInput(); } });
 $('keyIn').addEventListener('blur', () => { const inp = $('keyIn'); if(inp.value.trim()) saveKeyFromInput(); else inp.classList.add('hidden'); });
+$('handleIn').addEventListener('input', () => {
+  state.handle = Math.max(0, parseFloat($('handleIn').value) || 0);
+  state.beats.forEach((_, i) => updateScrubLab(i));
+});
+const exHint = () => $('exportHint').textContent = $('modePre').checked
+  ? 'Copies sources + a double-clickable build.command that ffmpeg-trims them. Pick a parent folder; a dated subfolder is created inside.'
+  : 'Copies the full source clips, untrimmed. Pick a parent folder; a dated subfolder is created inside.';
+$('modePre').addEventListener('change', exHint);
+$('modeFull').addEventListener('change', exHint);
 $('loadBtn').addEventListener('click', async () => {
   try{
     const [h] = await window.showOpenFilePicker({ types: [{ description: 'Script', accept: { 'text/plain': ['.txt', '.md'] } }] });

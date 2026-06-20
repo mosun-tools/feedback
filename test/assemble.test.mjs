@@ -4,10 +4,11 @@
 // text artifacts so their contents are verified before the in-Chrome test.
 //
 //   run:  node test/assemble.test.mjs
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import vm from 'node:vm';
 import assert from 'node:assert';   // loose: vm-realm objects have a different prototype
 
@@ -24,7 +25,8 @@ vm.createContext(ctx);
 vm.runInContext(
   taxo[0] + '\n' + cfg[0] + '\n' + pure[1] + '\n' +
   ';globalThis.api = { slugify, fmtClock, srtTimestamp, scoreClip, rankClips, isGap, clipOutName, ' +
-  'buildShotlist, buildSrt, buildMusic, buildToFilm, summarize, WEIGHTS, GAP_THRESHOLD, TAG_KEYS };',
+  'buildShotlist, buildSrt, buildMusic, buildToFilm, summarize, computeCut, buildPrecutShotlist, ' +
+  'buildBuildCommand, beatBase, WEIGHTS, GAP_THRESHOLD, TAG_KEYS };',
   ctx
 );
 const A = ctx.api;
@@ -52,6 +54,12 @@ check('srtTimestamp formats HH:MM:SS,mmm', () => {
 check('clipOutName is ordered + slugged + keeps source ext', () => {
   assert.equal(A.clipOutName(0, { action: ['walking'] }, '.MOV'), '01_walking.MOV');
   assert.equal(A.clipOutName(9, { action: [], needDescription: 'rooftop sunset' }, '.mp4'), '10_rooftop-sunset.mp4');
+});
+check('beatBase has NO extension (guards double-ext: source+outName)', () => {
+  const base = A.beatBase(0, { action: ['walking'] });
+  assert.equal(base, '01_walking');                  // no .mp4
+  assert.equal(base + '.MOV', '01_walking.MOV');     // source/ copy
+  assert.equal(base + '.mp4', '01_walking.mp4');     // trimmed output
 });
 
 // ---- scoring ----
@@ -119,6 +127,86 @@ check('summarize counts matched/gaps + runtime vs script length', () => {
   const s = A.summarize(beats, assign);
   assert.equal(s.beats, 3); assert.equal(s.matched, 2); assert.equal(s.gaps, 1);
   assert.equal(s.runtime, 7); assert.equal(s.scriptLen, 7);
+});
+
+// ---- Stage 2.1: cut math + handle clamping ----
+const clip10 = { duration: 10 };
+check('computeCut: front handle clamps to clip start', () => {
+  const c = A.computeCut({ tStart: 0, tEnd: 2 }, clip10, 0, 1.5);
+  assert.equal(c.trimStart, 0);      // 0 - 1.5 clamped to 0
+  assert.equal(c.trimEnd, 3.5);      // 0 + 2 + 1.5
+  assert.equal(c.handledDur, 3.5);
+  assert.equal(c.cleanIn, 0);        // no pre-roll available
+  assert.equal(c.cleanOut, 2);
+});
+check('computeCut: full handles mid-clip', () => {
+  const c = A.computeCut({ tStart: 0, tEnd: 2 }, clip10, 4, 1.5);
+  assert.equal(c.trimStart, 2.5);
+  assert.equal(c.trimEnd, 7.5);
+  assert.equal(c.handledDur, 5);
+  assert.equal(c.cleanIn, 1.5);      // full front handle
+  assert.equal(c.cleanOut, 3.5);     // beat is 2s within the handled clip
+});
+check('computeCut: back handle + in-point clamp at clip end', () => {
+  const c = A.computeCut({ tStart: 0, tEnd: 2 }, clip10, 9, 1.5);  // in-point clamps to 8
+  assert.equal(c.inPoint, 8);
+  assert.equal(c.trimStart, 6.5);
+  assert.equal(c.trimEnd, 10);       // 8 + 2 + 1.5 clamped to 10
+  assert.equal(c.handledDur, 3.5);
+  assert.equal(c.cleanIn, 1.5);
+  assert.equal(c.cleanOut, 3.5);
+});
+check('computeCut: beat longer than clip uses whole clip', () => {
+  const c = A.computeCut({ tStart: 0, tEnd: 30 }, clip10, 5, 1.5);
+  assert.equal(c.trimStart, 0);
+  assert.equal(c.trimEnd, 10);
+  assert.equal(c.cleanIn, 0);
+  assert.equal(c.cleanOut, 10);
+});
+
+const precutRows = [
+  { beat: beats[0], outName: '01_walking.mp4', srcOriginal: 'IMG_8163.MOV',
+    cut: A.computeCut(beats[0], clip10, 4, 1.5) },
+  { beat: beats[2], cut: null },   // gap
+];
+check('buildPrecutShotlist shows trim marks + TO FILM + chmod hint', () => {
+  const md = A.buildPrecutShotlist(precutRows);
+  assert.ok(md.includes('clean trim (in→out in clip)'));
+  assert.ok(md.includes('chmod +x build.command'));
+  assert.ok(md.includes('01_walking.mp4') && md.includes('IMG_8163.MOV'));
+  assert.ok(md.includes('1.50s → 3.50s'));   // clean marks
+  assert.ok(md.includes('**TO FILM**'));
+});
+
+const dryCuts = [
+  { outName: '01_walking.mp4', source: '01_walking.MOV', srcOriginal: 'IMG_8163.MOV', trimStart: 2.5, handledDur: 5, cleanIn: 1.5, cleanOut: 3.5 },
+  { outName: '02_perform.mp4', source: '02_perform.mov', srcOriginal: 'IMG_7963.mov', trimStart: 0, handledDur: 4, cleanIn: 0, cleanOut: 3 },
+];
+const dryMissing = [{ srcOriginal: 'gone.MOV', reason: 'not in folder' }];
+check('buildBuildCommand structure: shebang, guard, encoder, trims, skip, preview', () => {
+  const sh = A.buildBuildCommand(dryCuts, dryMissing);
+  assert.ok(sh.startsWith('#!/bin/bash'));
+  assert.ok(sh.includes('command -v ffmpeg') && sh.includes('brew install ffmpeg'));
+  assert.ok(sh.includes('h264_videotoolbox'));
+  assert.ok(sh.includes('trim "source/01_walking.MOV" 2.500 5.000'));
+  assert.ok(sh.includes("'01_walking.mp4'") && sh.includes("'02_perform.mp4'"));
+  assert.ok(sh.includes('skipped (not in folder): gone.MOV'));
+  assert.ok(sh.includes('PREVIEW=1') && sh.includes('preview.mp4'));
+});
+
+// ---- build.command dry-run: actually execute it with ffmpeg forced absent ----
+check('build.command runs cleanly + prints brew line when ffmpeg is missing', () => {
+  const sh = A.buildBuildCommand(dryCuts, dryMissing);
+  const dir = mkdtempSync(join(tmpdir(), 'mosun-bc-'));
+  writeFileSync(join(dir, 'build.command'), sh);
+  const bin = join(dir, 'bin'); mkdirSync(bin);
+  symlinkSync('/usr/bin/dirname', join(bin, 'dirname'));   // only dirname on PATH → ffmpeg absent
+  let out = '', code = 0;
+  // absolute bash so the spawn resolves; restricted PATH so `command -v ffmpeg` fails
+  try{ out = execFileSync('/bin/bash', [join(dir, 'build.command')], { env: { PATH: bin }, encoding: 'utf8' }); }
+  catch(e){ code = (e.status == null ? 'signal/' + e.signal + ' code/' + e.code : e.status); out = (e.stdout || '') + (e.stderr || ''); }
+  assert.equal(code, 0, 'expected clean exit, got ' + code + '\n' + out);
+  assert.ok(/brew install ffmpeg/.test(out), out);
 });
 
 // ---- live dry-run against the real catalog.json ----
