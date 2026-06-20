@@ -109,6 +109,24 @@ header{ display:flex; align-items:flex-end; justify-content:space-between; gap:2
 .legend{ margin-top:18px; font-size:10px; letter-spacing:0.1em; color:var(--n4); line-height:1.7; }
 .legend kbd{ font-family:var(--font-body); color:var(--n2); border:1px solid var(--hairline); border-radius:4px; padding:1px 5px; }
 
+/* AI affordances */
+.statusbar .count.review b{ color:var(--saffron); }
+.thumb .badge.ai{ width:auto; height:auto; border-radius:var(--r-input); padding:2px 6px;
+  font-size:9px; letter-spacing:0.12em; line-height:1; background:var(--saffron); color:var(--ink); box-shadow:0 0 10px rgba(246,162,92,.5); }
+.chip.ai{ border-style:dashed; border-color:var(--saffron); color:var(--saffron-soft); }
+.chip.ai.on{ background:transparent; }
+.group .glabel .aimark{ font-size:9px; letter-spacing:0.12em; color:var(--saffron); border:1px solid var(--saffron);
+  border-radius:var(--r-input); padding:1px 5px; text-transform:uppercase; }
+.aibar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--hairline); }
+.aibar .keyin{ flex:1; min-width:160px; font-family:var(--font-body); font-size:13px; color:var(--cream); background:transparent;
+  border:none; border-bottom:1px solid var(--border-strong); padding:7px 2px; outline:none; }
+.aibar .keyin:focus{ border-color:var(--saffron); }
+.aibar .keyset{ font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--n3); }
+.aibar .keyset b{ color:var(--saffron); }
+.btn.ai{ border-color:var(--saffron); color:var(--saffron); }
+.btn.ai:hover{ background:var(--saffron); color:var(--ink); }
+.btn.ai.busy{ opacity:.6; cursor:progress; }
+
 /* empty grid */
 .emptygrid{ color:var(--n4); font-family:var(--font-quote); font-style:italic; font-size:18px; padding:40px 0; }
 </style>
@@ -129,6 +147,7 @@ header{ display:flex; align-items:flex-end; justify-content:space-between; gap:2
   <div class="statusbar" id="statusbar">
     <span class="count">Clips <b id="cTotal">0</b></span>
     <span class="count untag">Untagged <b id="cUntag">0</b></span>
+    <span class="count review">AI to confirm <b id="cReview">0</b></span>
     <span class="msg" id="msg"></span>
   </div>
 
@@ -147,6 +166,12 @@ header{ display:flex; align-items:flex-end; justify-content:space-between; gap:2
       <div class="controls">
         <input class="search" id="search" type="search" placeholder="Search filename, song, notes…" autocomplete="off">
         <div class="filterbar" id="filterbar"></div>
+        <div class="aibar">
+          <input class="keyin hidden" id="keyIn" type="password" placeholder="Paste Anthropic API key (sk-ant-…)" autocomplete="off">
+          <span class="keyset hidden" id="keySet">AI key <b>set</b></span>
+          <button class="btn small" id="keyBtn">Set AI key</button>
+          <button class="btn ai small" id="aiAllBtn">AI-tag untagged</button>
+        </div>
       </div>
       <div class="grid" id="grid"></div>
       <div class="emptygrid hidden" id="emptygrid">No clips match.</div>
@@ -168,6 +193,7 @@ header{ display:flex; align-items:flex-end; justify-content:space-between; gap:2
           <textarea id="enotes" placeholder="anything worth remembering…"></textarea>
         </div>
         <div class="actions">
+          <button class="btn ai small" id="aiOneBtn">AI-tag</button>
           <button class="btn small" id="skipBtn">Skip</button>
           <button class="btn primary small" id="saveBtn">Save &amp; next</button>
         </div>
@@ -255,6 +281,33 @@ function matchesSearch(clip, filters, text){
     if(!hay.includes(t)) return false;
   }
   return true;
+}
+
+// A clip is "to confirm" when an AI pre-filled it and the user hasn't reviewed.
+function needsReview(clip){ return !!clip && clip.source === 'ai' && isTagged(clip); }
+
+// Defensively coerce an AI response to ONLY valid taxonomy values (drops anything
+// the model invented). Returns a fresh tags object with every group key present.
+function sanitizeAITags(aiTags){
+  const out = {};
+  for(const g of TAG_GROUPS){
+    const allowed = new Set(g.values);
+    const got = (aiTags && aiTags[g.key]) || [];
+    out[g.key] = Array.isArray(got) ? got.filter(v => allowed.has(v)) : [];
+  }
+  return out;
+}
+
+// Apply an AI suggestion onto a clip: overwrite tags (sanitized), mark source:"ai",
+// fill notes only if empty (never clobber the user's own notes), recompute tagged.
+function applyAISuggestion(clip, ai){
+  clip.tags = sanitizeAITags(ai && ai.tags);
+  if(ai && typeof ai.notes === 'string' && ai.notes.trim() && !(clip.notes || '').trim()){
+    clip.notes = ai.notes.trim();
+  }
+  clip.source = 'ai';
+  clip.tagged = isTagged(clip);
+  return clip;
 }
 /* ======================== PURE-LOGIC-END ============================== */
 
@@ -346,8 +399,10 @@ function untaggedClips(){
   return presentClips().filter(c => !isTagged(c));
 }
 function refreshCounts(){
-  $('cTotal').textContent = presentClips().length;
-  $('cUntag').textContent = untaggedClips().length;
+  const present = presentClips();
+  $('cTotal').textContent = present.length;
+  $('cUntag').textContent = present.filter(c => !isTagged(c)).length;
+  $('cReview').textContent = present.filter(needsReview).length;
 }
 
 /* ----- persistence (debounced) ----- */
@@ -449,7 +504,7 @@ function renderGrid(){
     const summary = TAG_KEYS.flatMap(k => clip.tags[k]).slice(0, 4).join(' · ');
     card.innerHTML =
       '<div class="thumb">' +
-        (tagged ? '' : '<span class="badge" title="untagged"></span>') +
+        badgeHtml(clip) +
         '<span class="ph">loading…</span>' +
         '<span class="dur">' + fmtDuration(clip.duration || null) + '</span>' +
       '</div>' +
@@ -465,6 +520,12 @@ function renderGrid(){
 }
 
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// saffron "AI" tag for unconfirmed AI suggestions, a dot for untagged, nothing once confirmed
+function badgeHtml(clip){
+  if(needsReview(clip)) return '<span class="badge ai" title="AI-suggested — confirm or edit">AI</span>';
+  if(!isTagged(clip)) return '<span class="badge" title="untagged"></span>';
+  return '';
+}
 
 // lazily build a poster frame + read duration only when the card scrolls near view
 async function onPosterVisible(entries, obs){
@@ -540,6 +601,7 @@ async function openClip(file){
 
 function renderGroups(clip){
   const wrap = $('groups'); wrap.innerHTML = '';
+  const ai = needsReview(clip);   // unconfirmed AI suggestion → dashed chips + label mark
   TAG_GROUPS.forEach((g, gi) => {
     const sel = clip.tags[g.key] || [];
     const div = document.createElement('div');
@@ -549,10 +611,11 @@ function renderGroups(clip){
     g.values.forEach((v, vi) => {
       const on = sel.includes(v);
       const num = gi === state.activeGroup && vi < 9 ? '<span class="kbd">' + (vi + 1) + '</span>' : '';
-      chips += '<button class="chip' + (on ? ' on' : '') + '" data-group="' + g.key + '" data-val="' + escapeHtml(v) + '">'
+      chips += '<button class="chip' + (on ? ' on' : '') + (on && ai ? ' ai' : '') + '" data-group="' + g.key + '" data-val="' + escapeHtml(v) + '">'
              + escapeHtml(v) + num + '</button>';
     });
-    div.innerHTML = '<div class="glabel">' + g.label + '</div><div class="chips">' + chips + '</div>';
+    const mark = ai ? ' <span class="aimark">AI</span>' : '';
+    div.innerHTML = '<div class="glabel">' + g.label + mark + '</div><div class="chips">' + chips + '</div>';
     div.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
       state.activeGroup = gi; toggleTag(g.key, ch.dataset.val); renderGroups(state.byFile.get(state.focus));
     }));
@@ -564,6 +627,7 @@ function toggleTag(key, val){
   const arr = clip.tags[key];
   const i = arr.indexOf(val);
   if(i >= 0) arr.splice(i, 1); else arr.push(val);
+  clip.source = 'manual';              // user touched it → confirmed/overridden
   clip.tagged = isTagged(clip);
   refreshCounts();
   updateCardTagline(clip);
@@ -573,9 +637,11 @@ function updateCardTagline(clip){
   const card = document.querySelector('.card[data-file="' + cssEsc(clip.file) + '"]');
   if(!card) return;
   const tagged = isTagged(clip);
-  const badge = card.querySelector('.badge');
-  if(tagged && badge) badge.remove();
-  if(!tagged && !badge){ const b = document.createElement('span'); b.className = 'badge'; card.querySelector('.thumb').prepend(b); }
+  const thumb = card.querySelector('.thumb');
+  const oldBadge = thumb.querySelector('.badge');
+  if(oldBadge) oldBadge.remove();
+  const bh = badgeHtml(clip);
+  if(bh) thumb.insertAdjacentHTML('afterbegin', bh);
   const tl = card.querySelector('.tagline');
   const summary = TAG_KEYS.flatMap(k => clip.tags[k]).slice(0, 4).join(' · ');
   tl.textContent = tagged ? (summary || '—') : 'untagged';
@@ -592,6 +658,7 @@ function saveAndNext(){
   if(!state.focus) return;
   commitFields();
   const clip = state.byFile.get(state.focus);
+  clip.source = 'manual';              // saving confirms an AI suggestion
   clip.tagged = isTagged(clip);
   updateCardTagline(clip); refreshCounts(); scheduleSave();
   // auto-advance to the next untagged clip (after the current one)
@@ -633,8 +700,139 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+/* ============================== AI tagging =========================== */
+/* Frames (downscaled stills, never the video file) go browser → Anthropic.
+   Key is pasted in and kept in localStorage on this machine only. */
+const AI_KEY_LS = 'mosun-anthropic-key';
+const AI_MODEL = 'claude-opus-4-8';
+const AI_FRAMES = 5;
+const AI_PROMPT =
+  'These are evenly-spaced frames from one short video clip shot by MOSUN, a Lagos-born, ' +
+  'London-based music artist (warm, moody, after-dark aesthetic). Tag the clip using ONLY the ' +
+  'allowed values in the schema. For each of setting, time, action, shot, mood, return the values ' +
+  'that genuinely apply across the clip — multiple are fine, or an empty array if none fit. Do not ' +
+  'guess the song. In notes, write one short factual sentence describing what is visually shown. ' +
+  'Return only the structured tags.';
+
+function getKey(){ return localStorage.getItem(AI_KEY_LS) || ''; }
+function renderKeyBar(){
+  const has = !!getKey();
+  $('keySet').classList.toggle('hidden', !has);
+  $('keyBtn').textContent = has ? 'Change key' : 'Set AI key';
+}
+function toggleKeyInput(){
+  const inp = $('keyIn');
+  const opening = inp.classList.contains('hidden');
+  inp.classList.toggle('hidden', !opening);
+  if(opening){ inp.value = ''; inp.focus(); }
+}
+function saveKeyFromInput(){
+  const inp = $('keyIn');
+  const v = inp.value.trim();
+  if(v) localStorage.setItem(AI_KEY_LS, v);
+  inp.value = ''; inp.classList.add('hidden');
+  renderKeyBar();
+  if(v){ setMsg('AI key saved'); setTimeout(() => setMsg(''), 1400); }
+}
+
+// JSON-schema mirror of the taxonomy → forces Claude to return valid tags only.
+function aiSchema(){
+  const props = {};
+  for(const g of TAG_GROUPS) props[g.key] = { type: 'array', items: { type: 'string', enum: g.values } };
+  props.notes = { type: 'string' };
+  return { type: 'object', properties: props, required: [...TAG_KEYS, 'notes'], additionalProperties: false };
+}
+
+// Grab N evenly-spaced frames as base64 JPEG, downscaled to ~512px. No transcode.
+async function extractFrames(file, n){
+  const url = URL.createObjectURL(file);
+  const v = document.createElement('video');
+  v.muted = true; v.preload = 'metadata'; v.src = url; v.playsInline = true;
+  try{
+    await once(v, 'loadedmetadata');
+    const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+    const W = 512, H = Math.round(W * (v.videoHeight / v.videoWidth || 9 / 16));
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const frames = [];
+    for(let i = 0; i < n; i++){
+      const t = dur ? Math.min(dur * (i + 0.5) / n, Math.max(0, dur - 0.05)) : 0;
+      v.currentTime = t;
+      await once(v, 'seeked');
+      ctx.drawImage(v, 0, 0, W, H);
+      frames.push(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+    }
+    return frames;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function callClaude(frames){
+  const key = getKey();
+  if(!key) throw new Error('no API key');
+  const content = frames.map(b64 => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } }));
+  content.push({ type: 'text', text: AI_PROMPT });
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: AI_MODEL, max_tokens: 1024,
+      output_config: { format: { type: 'json_schema', schema: aiSchema() } },
+      messages: [{ role: 'user', content }],
+    }),
+  });
+  if(!res.ok){ throw new Error('API ' + res.status + ' — ' + (await res.text()).slice(0, 160)); }
+  const data = await res.json();
+  const block = (data.content || []).find(b => b.type === 'text');
+  if(!block) throw new Error('empty response');
+  return JSON.parse(block.text);            // { setting:[], time:[], …, notes:"" }
+}
+
+async function aiTagClip(file, btn){
+  const handle = state.handles.get(file), clip = state.byFile.get(file);
+  if(!handle || !clip) return false;
+  if(!getKey()){ setMsg('Set your AI key first.', true); toggleKeyInput(); return false; }
+  if(btn) btn.classList.add('busy');
+  try{
+    const ai = await callClaude(await extractFrames(await handle.getFile(), AI_FRAMES));
+    applyAISuggestion(clip, { tags: ai, notes: ai.notes });
+    if(state.focus === file){ renderGroups(clip); $('enotes').value = clip.notes || ''; }
+    updateCardTagline(clip); refreshCounts(); scheduleSave();
+    return true;
+  }catch(e){ console.error(e); setMsg('AI failed: ' + e.message, true); return false; }
+  finally{ if(btn) btn.classList.remove('busy'); }
+}
+
+async function aiTagAll(){
+  if(!getKey()){ setMsg('Set your AI key first.', true); toggleKeyInput(); return; }
+  const todo = untaggedClips();
+  if(!todo.length){ setMsg('No untagged clips to tag.'); setTimeout(() => setMsg(''), 1600); return; }
+  const btn = $('aiAllBtn'); btn.classList.add('busy'); btn.disabled = true;
+  let done = 0;
+  for(const clip of todo){
+    setMsg('AI tagging ' + (done + 1) + '/' + todo.length + ' — ' + clip.file);
+    const ok = await aiTagClip(clip.file, null);
+    if(!ok) break;                          // stop the batch on the first error
+    done++;
+  }
+  btn.classList.remove('busy'); btn.disabled = false;
+  if(done) setMsg('AI tagged ' + done + ' clip' + (done > 1 ? 's' : '') + ' — review & confirm');
+  setTimeout(() => setMsg(''), 2600);
+}
+
 /* ============================= Wire-up =============================== */
 $('openBtn').addEventListener('click', openFolder);
+$('keyBtn').addEventListener('click', toggleKeyInput);
+$('keyIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); saveKeyFromInput(); } });
+$('keyIn').addEventListener('blur', () => { const inp = $('keyIn'); if(inp.value.trim()) saveKeyFromInput(); else inp.classList.add('hidden'); });
+$('aiAllBtn').addEventListener('click', aiTagAll);
+$('aiOneBtn').addEventListener('click', () => { if(state.focus) aiTagClip(state.focus, $('aiOneBtn')); });
+renderKeyBar();
 $('saveBtn').addEventListener('click', saveAndNext);
 $('skipBtn').addEventListener('click', () => {
   // skip = advance without changing tags

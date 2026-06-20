@@ -27,10 +27,11 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(
   taxo[0] + '\n' + pure[1] + '\n' +
-  ';globalThis.api = { fmtDuration, newClip, isTagged, buildMergedCatalog, matchesSearch, TAG_KEYS };',
+  ';globalThis.api = { fmtDuration, newClip, isTagged, buildMergedCatalog, matchesSearch, needsReview, sanitizeAITags, applyAISuggestion, TAG_KEYS };',
   ctx
 );
-const { fmtDuration, newClip, isTagged, buildMergedCatalog, matchesSearch, TAG_KEYS } = ctx.api;
+const { fmtDuration, newClip, isTagged, buildMergedCatalog, matchesSearch,
+        needsReview, sanitizeAITags, applyAISuggestion, TAG_KEYS } = ctx.api;
 
 let n = 0, pass = 0;
 function check(name, fn){ n++; try{ fn(); pass++; console.log('  ✓ ' + name); }
@@ -139,6 +140,45 @@ check('matchesSearch combines tags AND text', () => {
   const c = mk('a.mp4', { mood: ['warm'] }, { notes: 'candlelit' });
   assert.equal(matchesSearch(c, { ...none, mood: ['warm'] }, 'candle'), true);
   assert.equal(matchesSearch(c, { ...none, mood: ['calm'] }, 'candle'), false);
+});
+
+// ---- AI suggestion handling (Stage-2 hook) ----
+check('sanitizeAITags keeps only valid taxonomy values', () => {
+  const out = sanitizeAITags({ setting: ['studio', 'spaceship'], time: ['night'], mood: 'warm' });
+  assert.deepEqual(out.setting, ['studio']);       // 'spaceship' dropped
+  assert.deepEqual(out.time, ['night']);
+  assert.deepEqual(out.mood, []);                  // non-array coerced to []
+  assert.deepEqual(Object.keys(out).sort(), [...TAG_KEYS].sort());
+});
+check('applyAISuggestion sets source:"ai" and recomputes tagged', () => {
+  const c = newClip('a.mov', ISO, idFn);
+  applyAISuggestion(c, { tags: { setting: ['rooftop'], shot: ['wide'] }, notes: 'sunset rooftop' });
+  assert.equal(c.source, 'ai');
+  assert.equal(c.tagged, true);
+  assert.deepEqual(c.tags.setting, ['rooftop']);
+  assert.equal(c.notes, 'sunset rooftop');
+});
+check('applyAISuggestion never clobbers existing user notes', () => {
+  const c = newClip('a.mov', ISO, idFn);
+  c.notes = 'my own note';
+  applyAISuggestion(c, { tags: { mood: ['warm'] }, notes: 'ai note' });
+  assert.equal(c.notes, 'my own note');
+});
+check('needsReview flags AI clips with tags, not confirmed/empty ones', () => {
+  const ai = newClip('a.mov', ISO, idFn);
+  applyAISuggestion(ai, { tags: { mood: ['calm'] }, notes: '' });
+  assert.equal(needsReview(ai), true);
+  ai.source = 'manual';                            // user confirmed
+  assert.equal(needsReview(ai), false);
+  const emptyAi = { ...newClip('b.mov', ISO, idFn), source: 'ai' };  // ai source but no tags
+  assert.equal(needsReview(emptyAi), false);
+});
+check('merge round-trips an AI-tagged clip with source intact', () => {
+  const first = buildMergedCatalog([], ['a.mov'], ISO, idFn);
+  applyAISuggestion(first[0], { tags: { setting: ['street'] }, notes: '' });
+  const second = buildMergedCatalog(first, ['a.mov'], ISO, idFn);
+  assert.equal(second[0].source, 'ai');            // survives reload for review
+  assert.deepEqual(second[0].tags.setting, ['street']);
 });
 
 console.log('\n' + pass + '/' + n + ' passed');
