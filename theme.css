@@ -1,0 +1,25 @@
+/* MOSUN theme — single source of truth. <link> or @import this into any page.
+   Prospec/Rosnoc load from ./fonts. Futura = macOS system font (with fallbacks).
+   Default text/captions = Futura. Prospec/Rosnoc = LARGE display text only. */
+
+@font-face{ font-family:'Prospec'; src:url('fonts/Prospec.otf') format('opentype'); font-weight:400; font-display:swap; }
+@font-face{ font-family:'Rosnoc'; src:url('fonts/Rosnoc.otf') format('opentype'); font-display:swap; }
+
+:root{
+  /* color */
+  --ink:#000000; --cream:#E8E6D9;
+  --saffron:#F6A25C; --oxblood:#7E0101; --forest:#486348;
+  --saffron-wash:#FDE7D2; --saffron-soft:#FBC89A; --saffron-hover:#D8823A; --saffron-press:#B8661F;
+  --n1:#DEDCD0; --n2:#B9B7AC; --n3:#8A8880; --n4:#5C5B55; --n5:#2E2D2B;
+  --hairline:rgba(232,230,217,0.14); --border-strong:rgba(232,230,217,0.28);
+
+  /* type — body & captions default to Futura; display faces for big text only */
+  --font-display:'Prospec','Futura PT','Century Gothic',sans-serif;   /* titles: ALL CAPS, tracking .08–.34em, wt400 */
+  --font-deco:'Rosnoc',cursive;                                       /* decorative letters: lowercase, saffron */
+  --font-body:'Futura','Futura PT','Trebuchet MS','Century Gothic','Avenir',system-ui,sans-serif; /* body + captions + UI */
+  --font-quote:'Cormorant Garamond',Georgia,serif;                    /* italic pull-quotes only */
+
+  /* form */
+  --r-pill:999px; --r-card:14px; --r-input:6px;
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>MOSUN — Footage Catalog</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+/* ---- Brand shell: dark ink ground, cream text, saffron sparingly ---- */
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ background:var(--ink); color:var(--cream); }
+body{ font-family:var(--font-body); line-height:1.5; -webkit-font-smoothing:antialiased; }
+::selection{ background:var(--saffron); color:var(--ink); }
+
+.wrap{ max-width:1180px; margin:0 auto; padding:52px 32px 136px; }
+
+/* header */
+header{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:32px; }
+.brand h1{ font-family:var(--font-display); font-weight:400; font-size:30px; letter-spacing:0.22em; text-transform:uppercase; line-height:1; }
+.brand .sub{ margin-top:12px; font-size:12px; letter-spacing:0.2em; text-transform:uppercase; color:var(--n3); }
+.dot{ color:var(--saffron); }
+
+/* buttons */
+.btn{ font-family:var(--font-body); font-size:12px; letter-spacing:0.16em; text-transform:uppercase; padding:12px 22px;
+  border-radius:var(--r-pill); border:1px solid var(--border-strong); background:transparent; color:var(--cream);
+  cursor:pointer; transition:border-color .9s var(--ease), background .9s var(--ease), color .9s var(--ease), box-shadow .9s var(--ease); }
+.btn:hover{ border-color:var(--saffron); box-shadow:0 0 0 1px var(--saffron), 0 0 28px -6px var(--saffron); }
+.btn.primary{ background:var(--saffron); color:var(--ink); border-color:var(--saffron); }
+.btn.primary:hover{ background:var(--saffron-hover); border-color:var(--saffron-hover); box-shadow:0 0 32px -6px var(--saffron); }
+.btn:disabled{ opacity:.35; cursor:not-allowed; box-shadow:none; border-color:var(--border-strong); }
+.btn.small{ padding:8px 14px; }
+
+/* status / counts */
+.statusbar{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--n3); margin-bottom:32px; min-height:18px; }
+.statusbar .count b{ color:var(--cream); font-weight:400; }
+.statusbar .count.untag b{ color:var(--saffron); }
+.statusbar .msg{ color:var(--n3); }
+.statusbar .msg.err{ color:var(--saffron-soft); }
+.hidden{ display:none !important; }
+
+/* intro / empty states */
+.lead{ max-width:680px; }
+.lead p{ color:var(--n2); font-size:15px; margin-bottom:20px; }
+.lead .note{ font-size:12px; color:var(--n4); letter-spacing:0.04em; }
+.quote{ font-family:var(--font-quote); font-style:italic; font-size:22px; color:var(--n2); margin:0 0 32px; }
+
+/* layout */
+.layout{ display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:52px; align-items:start; }
+@media (max-width:920px){ .layout{ grid-template-columns:1fr; } .editor{ position:static !important; } }
+
+/* section labels */
+.label{ font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:var(--n3); margin-bottom:16px; }
+
+/* search + filters */
+.controls{ margin-bottom:20px; }
+.search{ width:100%; font-family:var(--font-body); font-size:15px; color:var(--cream); background:transparent;
+  border:none; border-bottom:1px solid var(--border-strong); padding:10px 2px; outline:none; transition:border-color .9s var(--ease); }
+.search::placeholder{ color:var(--n4); }
+.search:focus{ border-color:var(--saffron); }
+.filterbar{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+
+/* chips */
+.chip{ font-family:var(--font-body); font-size:12px; letter-spacing:0.04em; padding:7px 13px; border-radius:var(--r-pill);
+  border:1px solid var(--border-strong); background:transparent; color:var(--n1); cursor:pointer;
+  transition:border-color .5s var(--ease), background .5s var(--ease), color .5s var(--ease); position:relative; user-select:none; }
+.chip:hover{ border-color:var(--saffron-soft); }
+.chip.on{ background:var(--saffron); border-color:var(--saffron); color:var(--ink); }
+.chip .kbd{ font-size:9px; letter-spacing:0; color:var(--ink); background:rgba(0,0,0,.18); border-radius:4px; padding:1px 4px; margin-left:7px; vertical-align:middle; }
+.chip:not(.on) .kbd{ color:var(--saffron); background:rgba(246,162,92,.12); }
+
+/* grid */
+.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:20px; }
+.card{ border:1px solid var(--hairline); border-radius:var(--r-card); overflow:hidden; cursor:pointer; background:#0a0a0a;
+  transition:border-color .9s var(--ease), box-shadow .9s var(--ease); }
+.card:hover{ border-color:var(--border-strong); box-shadow:0 0 40px -18px var(--saffron); }
+.card.active{ border-color:var(--saffron); }
+.thumb{ position:relative; aspect-ratio:16/9; background:#0a0a0a; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.thumb canvas, .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.thumb .ph{ font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--n4); }
+.thumb .dur{ position:absolute; right:8px; bottom:8px; font-size:11px; letter-spacing:0.04em; color:var(--cream);
+  background:rgba(0,0,0,.6); padding:2px 7px; border-radius:var(--r-input); font-variant-numeric:tabular-nums; }
+.thumb .badge{ position:absolute; left:8px; top:8px; width:8px; height:8px; border-radius:50%; background:var(--saffron); box-shadow:0 0 10px var(--saffron); }
+.card .meta{ padding:12px; }
+.card .fn{ font-size:13px; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .tagline{ font-size:11px; color:var(--n3); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.04em; }
+.card .tagline.untag{ color:var(--saffron); }
+
+/* editor panel */
+.editor{ position:sticky; top:32px; border:1px solid var(--hairline); border-radius:var(--r-card); padding:20px; background:#070707; }
+.editor .ph-empty{ color:var(--n4); font-size:13px; text-align:center; padding:40px 0; }
+.editor video{ width:100%; border-radius:var(--r-input); background:#000; display:block; aspect-ratio:16/9; object-fit:contain; }
+.editor .efn{ font-size:14px; margin-top:14px; word-break:break-all; }
+.editor .edur{ font-size:11px; color:var(--n3); letter-spacing:0.1em; text-transform:uppercase; margin-top:4px; }
+.group{ margin-top:20px; }
+.group.active{ }
+.group .glabel{ font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--n3); margin-bottom:9px; display:flex; align-items:center; gap:8px; }
+.group.active .glabel{ color:var(--saffron); }
+.group.active .glabel::after{ content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--saffron),transparent); opacity:.5; }
+.group .chips{ display:flex; flex-wrap:wrap; gap:7px; }
+.field{ margin-top:20px; }
+.field label{ display:block; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--n3); margin-bottom:8px; }
+.field input, .field textarea{ width:100%; font-family:var(--font-body); font-size:14px; color:var(--cream); background:transparent;
+  border:none; border-bottom:1px solid var(--border-strong); padding:8px 2px; outline:none; resize:vertical; transition:border-color .9s var(--ease); }
+.field textarea{ min-height:54px; }
+.field input:focus, .field textarea:focus{ border-color:var(--saffron); }
+.editor .actions{ display:flex; gap:10px; margin-top:24px; }
+.editor .actions .btn{ flex:1; }
+.legend{ margin-top:18px; font-size:10px; letter-spacing:0.1em; color:var(--n4); line-height:1.7; }
+.legend kbd{ font-family:var(--font-body); color:var(--n2); border:1px solid var(--hairline); border-radius:4px; padding:1px 5px; }
+
+/* empty grid */
+.emptygrid{ color:var(--n4); font-family:var(--font-quote); font-style:italic; font-size:18px; padding:40px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>FOOTAGE<span class="dot">.</span></h1>
+      <div class="sub">Local catalog &middot; nothing uploads</div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="openBtn">Open footage folder</button>
+    </div>
+  </header>
+
+  <div class="statusbar" id="statusbar">
+    <span class="count">Clips <b id="cTotal">0</b></span>
+    <span class="count untag">Untagged <b id="cUntag">0</b></span>
+    <span class="msg" id="msg"></span>
+  </div>
+
+  <!-- intro (before a folder is connected) -->
+  <section class="lead" id="intro">
+    <p class="quote">Make the clips findable, and the edit writes itself.</p>
+    <p>Point this at your <b>MOSUN&nbsp;Footage</b> folder. It lists every video, lets you tag each one fast,
+       and saves a <b>catalog.json</b> index <i>inside that folder</i>. Footage and catalog stay 100% on your
+       machine &mdash; nothing is uploaded, transcoded, or rendered.</p>
+    <p class="note">Chrome only (File System Access API). The folder is remembered between visits.</p>
+  </section>
+
+  <!-- main app -->
+  <section class="layout hidden" id="app">
+    <div class="main">
+      <div class="controls">
+        <input class="search" id="search" type="search" placeholder="Search filename, song, notes…" autocomplete="off">
+        <div class="filterbar" id="filterbar"></div>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="emptygrid hidden" id="emptygrid">No clips match.</div>
+    </div>
+
+    <aside class="editor" id="editor">
+      <div class="ph-empty" id="editorEmpty">Select a clip to tag, or open the next untagged one.</div>
+      <div id="editorBody" class="hidden">
+        <video id="evid" controls preload="metadata" playsinline></video>
+        <div class="efn" id="efn"></div>
+        <div class="edur" id="edur"></div>
+        <div id="groups"></div>
+        <div class="field">
+          <label for="esong">Song / project</label>
+          <input id="esong" type="text" autocomplete="off" placeholder="e.g. Golden Hour">
+        </div>
+        <div class="field">
+          <label for="enotes">Notes</label>
+          <textarea id="enotes" placeholder="anything worth remembering…"></textarea>
+        </div>
+        <div class="actions">
+          <button class="btn small" id="skipBtn">Skip</button>
+          <button class="btn primary small" id="saveBtn">Save &amp; next</button>
+        </div>
+        <div class="legend">
+          <kbd>1</kbd>–<kbd>9</kbd> toggle chips in the active group &middot;
+          <kbd>↑</kbd><kbd>↓</kbd> change group &middot;
+          <kbd>Enter</kbd> save &amp; next &middot; <kbd>Esc</kbd> close
+        </div>
+      </div>
+    </aside>
+  </section>
+
+</div>
+
+<script>
+/* =======================================================================
+   EDITABLE TAG TAXONOMY — change these lists; the UI regenerates.
+   Keys here are the contract keys written into catalog.json -> clip.tags.
+   ======================================================================= */
+const TAG_GROUPS = [
+  { key:'setting', label:'Setting', values:['studio','street','home','rooftop','cafe','nature','transit','stage','gear-closeup'] },
+  { key:'time',    label:'Time',    values:['day','golden-hour','blue-hour','night','indoor'] },
+  { key:'action',  label:'Action',  values:['walking','performing','instrument','hands-on-gear','talk-to-cam','ambient','notebook','reaction'] },
+  { key:'shot',    label:'Shot',    values:['wide','medium','close','extreme-close','low-angle','high-angle','POV','static','handheld'] },
+  { key:'mood',    label:'Mood',    values:['moody','warm','energetic','calm','cinematic'] },
+];
+const TAG_KEYS = TAG_GROUPS.map(g => g.key);
+
+/* =======================================================================
+   PURE-LOGIC-START — no DOM, no FSA. Mirrored by the Node test harness
+   (test/catalog.test.mjs extracts this exact region). Keep it pure.
+   ======================================================================= */
+function fmtDuration(sec){
+  if(sec == null || !isFinite(sec) || sec < 0) return '—';
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  const ss = s === 60 ? 0 : s;             // guard rounding to 60
+  const mm = s === 60 ? m + 1 : m;
+  return mm + ':' + String(ss).padStart(2, '0');
+}
+
+function newClip(file, nowISO, idFn){
+  const tags = {};
+  for(const k of TAG_KEYS) tags[k] = [];
+  return { id: idFn(), file, duration: 0, addedAt: nowISO, tagged: false,
+           source: 'manual', tags, song: '', notes: '' };
+}
+
+function isTagged(clip){
+  const t = clip && clip.tags || {};
+  return TAG_KEYS.some(k => Array.isArray(t[k]) && t[k].length > 0);
+}
+
+// Merge the files currently present in the folder against the existing catalog.
+// - keeps existing records (so tags/ids survive) matched by filename
+// - adds newly-dropped files as untagged
+// - retains records whose file is currently absent (preserves tags if it returns)
+function buildMergedCatalog(existingClips, presentNames, nowISO, idFn){
+  const byFile = new Map((existingClips || []).map(c => [c.file, c]));
+  const present = new Set(presentNames);
+  const clips = [];
+  for(const name of presentNames){
+    const prev = byFile.get(name);
+    const clip = prev ? prev : newClip(name, nowISO, idFn);
+    clip.tagged = isTagged(clip);            // keep flag in sync with tags
+    clips.push(clip);
+  }
+  for(const c of (existingClips || [])){
+    if(!present.has(c.file)) clips.push(c);  // absent-but-known, keep its tags
+  }
+  return clips;
+}
+
+// AND across groups, OR within a group; text matches filename/song/notes.
+function matchesSearch(clip, filters, text){
+  for(const k of TAG_KEYS){
+    const want = (filters && filters[k]) || [];
+    if(!want.length) continue;
+    const have = (clip.tags && clip.tags[k]) || [];
+    if(!want.some(v => have.includes(v))) return false;
+  }
+  if(text && text.trim()){
+    const t = text.trim().toLowerCase();
+    const hay = (clip.file + ' ' + (clip.song || '') + ' ' + (clip.notes || '')).toLowerCase();
+    if(!hay.includes(t)) return false;
+  }
+  return true;
+}
+/* ======================== PURE-LOGIC-END ============================== */
+
+/* ===================== IndexedDB (folder handle) ====================== */
+const IDB_NAME = 'mosun-footage', IDB_STORE = 'handles', HANDLE_KEY = 'footageDir';
+function openIDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbSet(key, val){
+  const db = await openIDB();
+  return new Promise((res, rej) => {
+    const t = db.transaction(IDB_STORE, 'readwrite');
+    t.objectStore(IDB_STORE).put(val, key);
+    t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+  });
+}
+async function idbGet(key){
+  const db = await openIDB();
+  return new Promise((res, rej) => {
+    const t = db.transaction(IDB_STORE, 'readonly');
+    const rq = t.objectStore(IDB_STORE).get(key);
+    rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+  });
+}
+
+/* ===================== File System Access layer ======================= */
+const VIDEO_EXT = /\.(mp4|mov|m4v)$/i;
+async function verifyPermission(handle, write){
+  const opts = { mode: write ? 'readwrite' : 'readwrite' };
+  if(await handle.queryPermission(opts) === 'granted') return true;
+  if(await handle.requestPermission(opts) === 'granted') return true;
+  return false;
+}
+async function listVideoHandles(dir){
+  const out = [];
+  for await (const [name, handle] of dir.entries()){
+    if(handle.kind === 'file' && VIDEO_EXT.test(name)) out.push(handle);
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+async function readCatalog(dir){
+  try{
+    const fh = await dir.getFileHandle('catalog.json');
+    const f = await fh.getFile();
+    const j = JSON.parse(await f.text());
+    if(j && Array.isArray(j.clips)) return j;
+  }catch(e){ /* missing / unreadable → fresh */ }
+  return { version: 1, updated: null, clips: [] };
+}
+async function writeCatalog(dir, catalog){
+  const fh = await dir.getFileHandle('catalog.json', { create: true });
+  const w = await fh.createWritable();
+  await w.write(JSON.stringify(catalog, null, 2));
+  await w.close();
+}
+
+/* ============================= App state ============================== */
+const state = {
+  dir: null,
+  handles: new Map(),     // filename -> FileSystemFileHandle (present files only)
+  catalog: { version: 1, updated: null, clips: [] },
+  byFile: new Map(),      // filename -> clip (present + absent)
+  focus: null,            // filename being edited
+  activeGroup: 0,
+  filters: {},            // groupKey -> [values]
+  search: '',
+  saveTimer: null,
+};
+for(const k of TAG_KEYS) state.filters[k] = [];
+
+const $ = id => document.getElementById(id);
+const nowISO = () => new Date().toISOString();
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+  : 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9));
+
+function setMsg(text, isErr){
+  const m = $('msg'); m.textContent = text || ''; m.className = 'msg' + (isErr ? ' err' : '');
+}
+function presentClips(){
+  return state.catalog.clips.filter(c => state.handles.has(c.file));
+}
+function untaggedClips(){
+  return presentClips().filter(c => !isTagged(c));
+}
+function refreshCounts(){
+  $('cTotal').textContent = presentClips().length;
+  $('cUntag').textContent = untaggedClips().length;
+}
+
+/* ----- persistence (debounced) ----- */
+function scheduleSave(){
+  clearTimeout(state.saveTimer);
+  setMsg('Saving…');
+  state.saveTimer = setTimeout(saveNow, 700);
+}
+async function saveNow(){
+  if(!state.dir) return;
+  state.catalog.updated = nowISO();
+  try{ await writeCatalog(state.dir, state.catalog); setMsg('Saved'); setTimeout(() => setMsg(''), 1400); }
+  catch(e){ console.error(e); setMsg('Save failed — folder permission?', true); }
+}
+
+/* ----- connect / restore ----- */
+async function connect(dir, isRestore){
+  if(!(await verifyPermission(dir, true))){ setMsg('Permission denied for that folder.', true); return; }
+  state.dir = dir;
+  const handles = await listVideoHandles(dir);
+  state.handles = new Map(handles.map(h => [h.name, h]));
+  const existing = await readCatalog(dir);
+  state.catalog = { version: 1, updated: existing.updated, clips:
+    buildMergedCatalog(existing.clips, handles.map(h => h.name), nowISO(), uuid) };
+  state.byFile = new Map(state.catalog.clips.map(c => [c.file, c]));
+  await idbSet(HANDLE_KEY, dir);
+  await saveNow();                              // persist any newly-added clips
+  $('intro').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  buildFilterBar();
+  renderGrid();
+  refreshCounts();
+  setMsg(isRestore ? 'Folder reconnected' : 'Folder opened'); setTimeout(() => setMsg(''), 1600);
+  // jump straight into the first untagged clip
+  const next = untaggedClips()[0];
+  if(next) openClip(next.file);
+}
+
+async function openFolder(){
+  try{
+    const dir = await window.showDirectoryPicker({ id: 'mosun-footage', mode: 'readwrite' });
+    await connect(dir, false);
+  }catch(e){ if(e && e.name !== 'AbortError'){ console.error(e); setMsg('Could not open folder.', true); } }
+}
+
+async function tryRestore(){
+  if(!('showDirectoryPicker' in window)){
+    setMsg('This needs Chrome (File System Access API).', true);
+    $('openBtn').disabled = true; return;
+  }
+  let dir;
+  try{ dir = await idbGet(HANDLE_KEY); }catch(e){ return; }
+  if(!dir) return;
+  // permission can't be re-requested without a gesture; only auto-connect if already granted
+  if(await dir.queryPermission({ mode: 'readwrite' }) === 'granted'){
+    await connect(dir, true);
+  }else{
+    setMsg('Reconnect your footage folder →');
+    $('openBtn').textContent = 'Reconnect folder';
+  }
+}
+
+/* ============================== Render ================================ */
+function buildFilterBar(){
+  const bar = $('filterbar'); bar.innerHTML = '';
+  for(const g of TAG_GROUPS){
+    for(const v of g.values){
+      const chip = document.createElement('button');
+      chip.className = 'chip'; chip.textContent = v;
+      chip.dataset.group = g.key; chip.dataset.val = v;
+      chip.addEventListener('click', () => toggleFilter(g.key, v, chip));
+      bar.appendChild(chip);
+    }
+  }
+}
+function toggleFilter(key, val, chip){
+  const arr = state.filters[key];
+  const i = arr.indexOf(val);
+  if(i >= 0){ arr.splice(i, 1); chip.classList.remove('on'); }
+  else{ arr.push(val); chip.classList.add('on'); }
+  renderGrid();
+}
+
+let posterObserver = null;
+function renderGrid(){
+  const grid = $('grid');
+  grid.innerHTML = '';
+  if(posterObserver) posterObserver.disconnect();
+  posterObserver = new IntersectionObserver(onPosterVisible, { rootMargin: '300px' });
+
+  const list = presentClips().filter(c => matchesSearch(c, state.filters, state.search));
+  $('emptygrid').classList.toggle('hidden', list.length > 0);
+
+  for(const clip of list){
+    const card = document.createElement('div');
+    card.className = 'card' + (clip.file === state.focus ? ' active' : '');
+    card.dataset.file = clip.file;
+    const tagged = isTagged(clip);
+    const summary = TAG_KEYS.flatMap(k => clip.tags[k]).slice(0, 4).join(' · ');
+    card.innerHTML =
+      '<div class="thumb">' +
+        (tagged ? '' : '<span class="badge" title="untagged"></span>') +
+        '<span class="ph">loading…</span>' +
+        '<span class="dur">' + fmtDuration(clip.duration || null) + '</span>' +
+      '</div>' +
+      '<div class="meta">' +
+        '<div class="fn">' + escapeHtml(clip.file) + '</div>' +
+        '<div class="tagline ' + (tagged ? '' : 'untag') + '">' +
+          escapeHtml(tagged ? (summary || '—') : 'untagged') + '</div>' +
+      '</div>';
+    card.addEventListener('click', () => openClip(clip.file));
+    grid.appendChild(card);
+    posterObserver.observe(card);
+  }
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// lazily build a poster frame + read duration only when the card scrolls near view
+async function onPosterVisible(entries, obs){
+  for(const e of entries){
+    if(!e.isIntersecting) continue;
+    obs.unobserve(e.target);
+    const file = e.target.dataset.file;
+    makePoster(file, e.target.querySelector('.thumb'));
+  }
+}
+async function makePoster(file, thumbEl){
+  const handle = state.handles.get(file);
+  if(!handle) return;
+  let url;
+  try{
+    const f = await handle.getFile();
+    url = URL.createObjectURL(f);
+    const v = document.createElement('video');
+    v.muted = true; v.preload = 'metadata'; v.src = url; v.playsInline = true;
+    await once(v, 'loadedmetadata');
+    const clip = state.byFile.get(file);
+    if(clip && (!clip.duration || clip.duration === 0) && isFinite(v.duration)){
+      clip.duration = Math.round(v.duration * 10) / 10;
+      const dur = thumbEl.querySelector('.dur'); if(dur) dur.textContent = fmtDuration(clip.duration);
+      scheduleSave();
+    }
+    v.currentTime = Math.min(1, (v.duration || 2) / 2);
+    await once(v, 'seeked');
+    const canvas = document.createElement('canvas');
+    const w = 480, h = Math.round(w * (v.videoHeight / v.videoWidth || 9 / 16));
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(v, 0, 0, w, h);
+    const ph = thumbEl.querySelector('.ph'); if(ph) ph.remove();
+    thumbEl.insertBefore(canvas, thumbEl.firstChild);
+  }catch(err){
+    const ph = thumbEl.querySelector('.ph'); if(ph) ph.textContent = 'no preview';
+  }finally{
+    if(url) URL.revokeObjectURL(url);
+  }
+}
+function once(el, ev){ return new Promise((res, rej) => {
+  const ok = () => { cleanup(); res(); };
+  const bad = () => { cleanup(); rej(new Error(ev + ' failed')); };
+  const cleanup = () => { el.removeEventListener(ev, ok); el.removeEventListener('error', bad); };
+  el.addEventListener(ev, ok, { once: true }); el.addEventListener('error', bad, { once: true });
+}); }
+
+/* ============================== Editor =============================== */
+let focusURL = null;
+async function openClip(file){
+  const clip = state.byFile.get(file);
+  if(!clip) return;
+  state.focus = file; state.activeGroup = 0;
+  $('editorEmpty').classList.add('hidden');
+  $('editorBody').classList.remove('hidden');
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('active', c.dataset.file === file));
+
+  $('efn').textContent = clip.file;
+  $('edur').textContent = clip.duration ? fmtDuration(clip.duration) : '';
+  $('esong').value = clip.song || '';
+  $('enotes').value = clip.notes || '';
+  renderGroups(clip);
+
+  // load preview video
+  if(focusURL){ URL.revokeObjectURL(focusURL); focusURL = null; }
+  const handle = state.handles.get(file);
+  const vid = $('evid');
+  if(handle){
+    try{ const f = await handle.getFile(); focusURL = URL.createObjectURL(f); vid.src = focusURL; }
+    catch(e){ vid.removeAttribute('src'); }
+  }
+}
+
+function renderGroups(clip){
+  const wrap = $('groups'); wrap.innerHTML = '';
+  TAG_GROUPS.forEach((g, gi) => {
+    const sel = clip.tags[g.key] || [];
+    const div = document.createElement('div');
+    div.className = 'group' + (gi === state.activeGroup ? ' active' : '');
+    div.dataset.gi = gi;
+    let chips = '';
+    g.values.forEach((v, vi) => {
+      const on = sel.includes(v);
+      const num = gi === state.activeGroup && vi < 9 ? '<span class="kbd">' + (vi + 1) + '</span>' : '';
+      chips += '<button class="chip' + (on ? ' on' : '') + '" data-group="' + g.key + '" data-val="' + escapeHtml(v) + '">'
+             + escapeHtml(v) + num + '</button>';
+    });
+    div.innerHTML = '<div class="glabel">' + g.label + '</div><div class="chips">' + chips + '</div>';
+    div.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+      state.activeGroup = gi; toggleTag(g.key, ch.dataset.val); renderGroups(state.byFile.get(state.focus));
+    }));
+    wrap.appendChild(div);
+  });
+}
+function toggleTag(key, val){
+  const clip = state.byFile.get(state.focus); if(!clip) return;
+  const arr = clip.tags[key];
+  const i = arr.indexOf(val);
+  if(i >= 0) arr.splice(i, 1); else arr.push(val);
+  clip.tagged = isTagged(clip);
+  refreshCounts();
+  updateCardTagline(clip);
+  scheduleSave();
+}
+function updateCardTagline(clip){
+  const card = document.querySelector('.card[data-file="' + cssEsc(clip.file) + '"]');
+  if(!card) return;
+  const tagged = isTagged(clip);
+  const badge = card.querySelector('.badge');
+  if(tagged && badge) badge.remove();
+  if(!tagged && !badge){ const b = document.createElement('span'); b.className = 'badge'; card.querySelector('.thumb').prepend(b); }
+  const tl = card.querySelector('.tagline');
+  const summary = TAG_KEYS.flatMap(k => clip.tags[k]).slice(0, 4).join(' · ');
+  tl.textContent = tagged ? (summary || '—') : 'untagged';
+  tl.className = 'tagline' + (tagged ? '' : ' untag');
+}
+function cssEsc(s){ return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/"/g, '\\"'); }
+
+function commitFields(){
+  const clip = state.byFile.get(state.focus); if(!clip) return;
+  clip.song = $('esong').value.trim();
+  clip.notes = $('enotes').value.trim();
+}
+function saveAndNext(){
+  if(!state.focus) return;
+  commitFields();
+  const clip = state.byFile.get(state.focus);
+  clip.tagged = isTagged(clip);
+  updateCardTagline(clip); refreshCounts(); scheduleSave();
+  // auto-advance to the next untagged clip (after the current one)
+  const present = presentClips();
+  const order = present.map(c => c.file);
+  const start = order.indexOf(state.focus);
+  let nextFile = null;
+  for(let n = 1; n <= order.length; n++){
+    const cand = present[(start + n) % order.length];
+    if(cand && !isTagged(cand) && cand.file !== state.focus){ nextFile = cand.file; break; }
+  }
+  if(nextFile) openClip(nextFile);
+  else { closeEditor(); setMsg('Everything tagged.'); setTimeout(() => setMsg(''), 1600); }
+}
+function closeEditor(){
+  state.focus = null;
+  if(focusURL){ URL.revokeObjectURL(focusURL); focusURL = null; }
+  $('evid').removeAttribute('src');
+  $('editorBody').classList.add('hidden');
+  $('editorEmpty').classList.remove('hidden');
+  document.querySelectorAll('.card.active').forEach(c => c.classList.remove('active'));
+}
+
+/* ============================ Keyboard =============================== */
+document.addEventListener('keydown', (e) => {
+  // don't hijack typing in text fields
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea';
+  if(!state.focus) return;
+  if(e.key === 'Escape'){ if(typing){ e.target.blur(); } else { closeEditor(); } return; }
+  if(typing) return;
+  if(e.key === 'Enter'){ e.preventDefault(); saveAndNext(); return; }
+  if(e.key === 'ArrowDown'){ e.preventDefault(); state.activeGroup = (state.activeGroup + 1) % TAG_GROUPS.length; renderGroups(state.byFile.get(state.focus)); return; }
+  if(e.key === 'ArrowUp'){ e.preventDefault(); state.activeGroup = (state.activeGroup - 1 + TAG_GROUPS.length) % TAG_GROUPS.length; renderGroups(state.byFile.get(state.focus)); return; }
+  if(/^[1-9]$/.test(e.key)){
+    const g = TAG_GROUPS[state.activeGroup];
+    const v = g.values[parseInt(e.key, 10) - 1];
+    if(v){ e.preventDefault(); toggleTag(g.key, v); renderGroups(state.byFile.get(state.focus)); }
+  }
+});
+
+/* ============================= Wire-up =============================== */
+$('openBtn').addEventListener('click', openFolder);
+$('saveBtn').addEventListener('click', saveAndNext);
+$('skipBtn').addEventListener('click', () => {
+  // skip = advance without changing tags
+  const present = presentClips(); const order = present.map(c => c.file);
+  const start = order.indexOf(state.focus);
+  for(let n = 1; n <= order.length; n++){
+    const cand = present[(start + n) % order.length];
+    if(cand && !isTagged(cand) && cand.file !== state.focus){ openClip(cand.file); return; }
+  }
+  closeEditor();
+});
+$('search').addEventListener('input', (e) => { state.search = e.target.value; renderGrid(); });
+$('esong').addEventListener('change', () => { commitFields(); scheduleSave(); });
+$('enotes').addEventListener('change', () => { commitFields(); scheduleSave(); });
+
+tryRestore();
+</script>
+</body>
+</html>
