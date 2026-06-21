@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>MOSUN — Shoot-Day Planner</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ background:var(--ink); color:var(--cream); }
+body{ font-family:var(--font-body); line-height:1.5; -webkit-font-smoothing:antialiased; }
+::selection{ background:var(--saffron); color:var(--ink); }
+
+.wrap{ max-width:1080px; margin:0 auto; padding:52px 32px 136px; }
+
+header{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:32px; }
+.brand h1{ font-family:var(--font-display); font-weight:400; font-size:30px; letter-spacing:0.22em; text-transform:uppercase; line-height:1; }
+.brand .sub{ margin-top:12px; font-size:12px; letter-spacing:0.2em; text-transform:uppercase; color:var(--n3); }
+.dot{ color:var(--saffron); }
+
+.btn{ font-family:var(--font-body); font-size:12px; letter-spacing:0.16em; text-transform:uppercase; padding:12px 22px;
+  border-radius:var(--r-pill); border:1px solid var(--border-strong); background:transparent; color:var(--cream);
+  cursor:pointer; transition:border-color .9s var(--ease), background .9s var(--ease), color .9s var(--ease), box-shadow .9s var(--ease); }
+.btn:hover{ border-color:var(--saffron); box-shadow:0 0 0 1px var(--saffron), 0 0 28px -6px var(--saffron); }
+.btn.primary{ background:var(--saffron); color:var(--ink); border-color:var(--saffron); }
+.btn.primary:hover{ background:var(--saffron-hover); border-color:var(--saffron-hover); box-shadow:0 0 32px -6px var(--saffron); }
+.btn.small{ padding:8px 14px; }
+.btn:disabled{ opacity:.35; cursor:not-allowed; box-shadow:none; border-color:var(--border-strong); }
+.btn.busy{ opacity:.6; cursor:progress; }
+
+.statusbar{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--n3); margin-bottom:24px; min-height:18px; }
+.statusbar .msg{ color:var(--n3); }
+.statusbar .msg.err{ color:var(--saffron-soft); }
+.hidden{ display:none !important; }
+
+.lead{ max-width:700px; }
+.lead p{ color:var(--n2); font-size:15px; margin-bottom:18px; }
+.lead .note{ font-size:12px; color:var(--n4); letter-spacing:0.04em; }
+.quote{ font-family:var(--font-quote); font-style:italic; font-size:22px; color:var(--n2); margin:0 0 28px; }
+
+.label{ font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:var(--n3); margin-bottom:14px; }
+.panel{ border:1px solid var(--hairline); border-radius:var(--r-card); padding:24px; margin-bottom:28px; background:#070707; }
+
+textarea.scripts{ width:100%; min-height:160px; font-family:var(--font-body); font-size:13px; color:var(--cream); background:transparent;
+  border:1px solid var(--border-strong); border-radius:var(--r-input); padding:14px; outline:none; resize:vertical; line-height:1.6; }
+textarea.scripts:focus{ border-color:var(--saffron); }
+textarea.scripts::placeholder{ color:var(--n4); }
+
+.drop{ border:1px dashed var(--border-strong); border-radius:var(--r-input); padding:18px; text-align:center; font-size:12px;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--n3); cursor:pointer; transition:border-color .4s var(--ease), color .4s var(--ease); margin-top:14px; }
+.drop:hover, .drop.over{ border-color:var(--saffron); color:var(--saffron); }
+
+.row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.row.mt{ margin-top:18px; }
+.spacer{ flex:1; }
+.sel{ font-family:var(--font-body); font-size:12px; letter-spacing:0.08em; color:var(--cream); background:#0a0a0a;
+  border:1px solid var(--border-strong); border-radius:var(--r-input); padding:9px 10px; outline:none; }
+.sel:focus{ border-color:var(--saffron); }
+.fieldlabel{ font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--n3); }
+
+.aibar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:18px; padding-top:18px; border-top:1px solid var(--hairline); }
+.aibar .keyin{ flex:1; min-width:160px; font-family:var(--font-body); font-size:13px; color:var(--cream); background:transparent; border:none; border-bottom:1px solid var(--border-strong); padding:7px 2px; outline:none; }
+.aibar .keyin:focus{ border-color:var(--saffron); }
+.aibar .keyset{ font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--n3); }
+.aibar .keyset b{ color:var(--saffron); }
+
+/* call sheet */
+.sheet-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap; margin-bottom:8px; }
+.sheet-head h2{ font-family:var(--font-display); font-size:22px; letter-spacing:0.16em; text-transform:uppercase; }
+.lightnote{ font-size:13px; color:var(--saffron-soft); margin-bottom:22px; }
+.lightnote b{ color:var(--saffron); }
+
+.summary{ display:flex; gap:26px; flex-wrap:wrap; margin-bottom:26px; }
+.stat .num{ font-family:var(--font-display); font-size:24px; letter-spacing:0.06em; color:var(--cream); }
+.stat .num.acc{ color:var(--saffron); }
+.stat .cap{ font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--n3); margin-top:4px; }
+
+.block{ border:1px solid var(--hairline); border-radius:var(--r-card); margin-bottom:18px; overflow:hidden; }
+.block.constraint{ border-color:rgba(246,162,92,.45); }
+.block .bhead{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 18px; background:#0a0a0a; cursor:grab; }
+.block .btitle{ min-width:0; }
+.block .bhead:active{ cursor:grabbing; }
+.block .grip{ color:var(--n4); font-size:14px; letter-spacing:-2px; }
+.block .btitle{ font-family:var(--font-display); font-size:15px; letter-spacing:0.14em; text-transform:uppercase; }
+.block .bwin{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--n3); }
+.block.constraint .bwin{ color:var(--saffron); }
+.block .bcount{ margin-left:auto; font-size:11px; letter-spacing:0.1em; color:var(--n3); }
+.shot{ display:flex; align-items:flex-start; gap:12px; padding:12px 18px; border-top:1px solid var(--hairline); }
+.shot input[type=checkbox]{ margin-top:3px; width:16px; height:16px; accent-color:var(--saffron); flex:none; }
+.shot .src{ font-size:11px; letter-spacing:0.06em; color:var(--saffron); flex:none; width:88px; white-space:normal; overflow-wrap:anywhere; line-height:1.4; }
+.shot .det{ flex:1; min-width:0; font-size:13px; display:flex; flex-direction:column; gap:4px; }
+.shot .flabel{ display:inline-block; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; letter-spacing:0; color:var(--saffron);
+  border:1px solid rgba(246,162,92,0.4); border-radius:var(--r-input); padding:1px 7px; margin-bottom:6px; user-select:all; }
+.shot .shotmeta{ display:block; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--saffron); }
+.shot .act{ display:block; color:var(--cream); }
+.shot .sub{ display:block; color:var(--n3); font-size:12px; }
+.shot .sub b{ color:var(--n2); font-weight:400; }
+.shot .ost{ display:block; color:var(--saffron-soft); font-size:12px; }
+
+.master{ display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:8px; }
+@media (max-width:640px){ .master{ grid-template-columns:1fr; } }
+.master .mcol h3{ font-family:var(--font-display); font-size:13px; letter-spacing:0.2em; text-transform:uppercase; color:var(--n2); margin-bottom:10px; }
+.master ul{ list-style:none; display:flex; flex-direction:column; gap:6px; }
+.master li{ font-size:13px; color:var(--n2); display:flex; justify-content:space-between; gap:12px; }
+.master li .c{ color:var(--n4); font-variant-numeric:tabular-nums; }
+
+.exportbar{ display:flex; gap:12px; flex-wrap:wrap; margin-top:26px; }
+.muted{ color:var(--n4); font-size:12px; letter-spacing:0.04em; }
+
+@media print{
+  @page{ margin:14mm; }
+  html,body{ background:#fff; color:#111; }
+  .no-print{ display:none !important; }
+  .wrap{ max-width:none; padding:0; }
+  .block, .panel{ border:1px solid #ccc; break-inside:avoid; }
+  .block .bhead{ background:#f3f1ea; cursor:default; }
+  .block .btitle, .sheet-head h2, .master .mcol h3{ color:#111; }
+  .block .bwin, .block.constraint .bwin, .shot .src, .shot .shotmeta, .shot .flabel, .lightnote b, .stat .num.acc{ color:#b8661f; }
+  .shot .flabel{ border-color:#d8a26a; }
+  .shot .act{ color:#111; } .shot .sub, .shot .sub b, .master li, .stat .cap{ color:#333; }
+  .grip{ display:none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>SHOOT&nbsp;DAY<span class="dot">.</span></h1>
+      <div class="sub">Batch a week of scripts into one shoot</div>
+    </div>
+  </header>
+
+  <div class="statusbar" id="statusbar"><span class="msg" id="msg"></span></div>
+
+  <section class="lead" id="intro">
+    <p class="quote">Shoot the whole week in a day — grouped by place, light, and look.</p>
+    <p>Paste a week of TikTok scripts or drop the weekly PDF. It's parsed into shots, batched into a
+       <b>shoot-day call sheet</b> — ordered blocks by location &amp; light, with wardrobe/props master lists —
+       then printed to carry on set. Text only; no video, nothing heavy.</p>
+    <p class="note">Chrome. Reuses your Assemble AI key. Wardrobe/props are inferred from the script vibe — edit on set.</p>
+  </section>
+
+  <section class="panel no-print" id="inputPanel">
+    <div class="label">1 &middot; The week's scripts</div>
+    <textarea class="scripts" id="scripts" placeholder="Paste the week's scripts…  or drop the weekly PDF below."></textarea>
+    <div class="drop" id="drop">Drop weekly PDF here &middot; or click to choose</div>
+    <div class="row mt">
+      <span class="fieldlabel">Group by</span>
+      <select class="sel" id="priority">
+        <option value="location" selected>Location first</option>
+        <option value="light">Light first</option>
+        <option value="outfit">Outfit first</option>
+      </select>
+      <span class="spacer"></span>
+      <button class="btn primary" id="parseBtn">Plan the shoot</button>
+    </div>
+    <div class="aibar">
+      <input class="keyin" id="keyIn" type="password" placeholder="Paste Anthropic API key (sk-ant-…), then Save key" autocomplete="off">
+      <span class="keyset hidden" id="keySet">AI key <b>set ✓</b></span>
+      <button class="btn small primary" id="keyBtn">Save key</button>
+    </div>
+  </section>
+
+  <section id="sheet" class="hidden">
+    <div class="sheet-head">
+      <h2 id="weekLabel">Call sheet</h2>
+      <button class="btn small no-print" id="printBtn">Print</button>
+    </div>
+    <div class="lightnote" id="lightNote"></div>
+    <div class="summary" id="summary"></div>
+    <div id="blocks"></div>
+    <div class="label" style="margin-top:32px">Wardrobe &amp; props — pack once</div>
+    <div class="master" id="master"></div>
+    <div class="exportbar no-print">
+      <button class="btn small" id="mdBtn">Download .md</button>
+      <button class="btn small" id="csvBtn">Download .csv</button>
+      <span class="muted">Downloads follow the <b>Group by</b> selector above. Drag a block header to reorder the on-screen sheet.</span>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* =======================================================================
+   TAXONOMY + config — locations & lights drive both the parse schema and
+   the batching. Editable.
+   ======================================================================= */
+const LOCATIONS = ['studio-apartment','taipei-street','rooftop','cafe','transit','stage','gear-closeup','other'];
+const LIGHTS = ['golden-hour','blue-hour','night','day','indoor'];
+const LOC_LABEL = { 'studio-apartment':'Studio apartment','taipei-street':'Taipei street','rooftop':'Rooftop','cafe':'Café','transit':'Transit','stage':'Stage','gear-closeup':'Gear close-up','other':'Other' };
+const LIGHT_LABEL = { 'golden-hour':'Golden hour','blue-hour':'Blue hour','night':'Night','day':'Day','indoor':'Indoor' };
+const LIGHT_WINDOW = { 'golden-hour':'Golden hour — dawn or dusk (see light note)','blue-hour':'Blue hour — just after sunset','night':'After dark','day':'Daytime — flexible','indoor':'Indoor — anytime' };
+const LIGHT_CONSTRAINT = { 'golden-hour':true,'blue-hour':true,'night':true,'day':false,'indoor':false };
+const MIN_PER_SHOT = 10, MIN_PER_LOCATION = 25;   // rough time estimate
+
+/* =======================================================================
+   PURE-LOGIC-START — no DOM, no network. Mirrored by test/planner.test.mjs.
+   ======================================================================= */
+const LOC_ORDER = Object.fromEntries(LOCATIONS.map((k, i) => [k, i]));
+const LIGHT_ORDER = { 'golden-hour':0, 'day':1, 'indoor':2, 'blue-hour':3, 'night':4 };  // shoot-day chronological-ish
+
+function fmtMinutes(m){
+  m = Math.max(0, Math.round(m));
+  const h = Math.floor(m / 60), mm = m % 60;
+  return h ? (h + 'h' + (mm ? ' ' + mm + 'm' : '')) : (mm + 'm');
+}
+
+// Batch shots into ordered blocks. priority ∈ location | light | outfit.
+// location/light → each block is one (location, light); outfit → (wardrobe, location).
+function clusterShots(shots, priority){
+  const groups = new Map();
+  for(const s of shots){
+    const loc = s.location || 'other', light = s.light || 'day', ward = (s.wardrobe || '').trim() || 'unspecified';
+    let key;
+    if(priority === 'light') key = light + ' | ' + loc;
+    else if(priority === 'outfit') key = ward + ' | ' + loc;
+    else key = loc + ' | ' + light;
+    if(!groups.has(key)) groups.set(key, { location: loc, light, wardrobe: ward, lights: new Set(), shots: [] });
+    const g = groups.get(key);
+    g.lights.add(light);
+    g.shots.push(s);
+  }
+  const blocks = [...groups.values()].map(g => {
+    const uniformLight = g.lights.size === 1 ? [...g.lights][0] : null;
+    const blockLight = (priority === 'outfit') ? uniformLight : g.light;
+    const title = (priority === 'outfit')
+      ? (g.wardrobe === 'unspecified' ? 'Outfit TBD' : g.wardrobe) + ' · ' + LOC_LABEL[g.location]
+      : LIGHT_LABEL[g.light].toUpperCase() + ' · ' + LOC_LABEL[g.location];
+    return {
+      location: g.location, light: blockLight, wardrobe: g.wardrobe, title,
+      window: blockLight ? LIGHT_WINDOW[blockLight] : 'Mixed light — see rows',
+      constraint: blockLight ? LIGHT_CONSTRAINT[blockLight] : false,
+      shots: g.shots,
+    };
+  });
+  blocks.sort((a, b) => {
+    if(priority === 'light') return (LIGHT_ORDER[a.light] - LIGHT_ORDER[b.light]) || (LOC_ORDER[a.location] - LOC_ORDER[b.location]);
+    if(priority === 'outfit') return a.wardrobe.localeCompare(b.wardrobe) || (LOC_ORDER[a.location] - LOC_ORDER[b.location]);
+    return (LOC_ORDER[a.location] - LOC_ORDER[b.location]) || (LIGHT_ORDER[a.light] - LIGHT_ORDER[b.light]);
+  });
+  return blocks;
+}
+
+function summarize(shots){
+  const locs = new Set(), outfits = new Set();
+  let golden = 0, night = 0;
+  for(const s of shots){
+    locs.add(s.location || 'other');
+    outfits.add(((s.wardrobe || '').trim() || 'unspecified'));
+    if(s.light === 'golden-hour') golden++;
+    if(s.light === 'night') night++;
+  }
+  return {
+    shots: shots.length, locations: locs.size, outfits: outfits.size, golden, night,
+    estimateMin: shots.length * MIN_PER_SHOT + locs.size * MIN_PER_LOCATION,
+  };
+}
+
+// Deduped wardrobe + props master lists, most-used first.
+function wardrobePropsMaster(shots){
+  const w = new Map(), p = new Map();
+  for(const s of shots){
+    const ward = (s.wardrobe || '').trim();
+    if(ward){ const e = w.get(ward) || { name: ward, count: 0, days: new Set() }; e.count++; if(s.day) e.days.add(s.day); w.set(ward, e); }
+    for(const pr of (s.props || [])){
+      const name = String(pr).trim(); if(!name) continue;
+      p.set(name, (p.get(name) || 0) + 1);
+    }
+  }
+  const outfits = [...w.values()].map(e => ({ name: e.name, count: e.count, days: [...e.days] })).sort((a, b) => b.count - a.count);
+  const props = [...p.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  return { outfits, props };
+}
+
+function shotSource(s){ return [s.day, s.post].filter(Boolean).join(' · ') || '—'; }
+function shotDur(s){ const d = s.duration; return (typeof d === 'number' && isFinite(d) && d > 0) ? Math.round(d) + 's' : ''; }
+function shotMeta(s){ return [(s.framing || '').trim(), shotDur(s)].filter(Boolean).join(' · '); }   // "close-up · 2s"
+
+// A unique, filesystem-safe label per shot — name the recorded clip with this so
+// it's identifiable once it lands in MOSUN Footage. e.g. JUN08_MON-P1-b2_walk-a-lane
+function slug16(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 16).replace(/-+$/, ''); }
+function dayCode(s){ const m = String(s.day || '').match(/mon|tue|wed|thu|fri|sat|sun/i); return m ? m[0].toUpperCase() : (slug16(s.day).slice(0, 3).toUpperCase() || 'DAY'); }
+function postCode(s){ const m = String(s.post || '').match(/p\s?\d+/i); return m ? m[0].replace(/\s+/, '').toUpperCase() : 'P'; }
+function weekCode(weekLabel){ const m = String(weekLabel || '').match(/([A-Za-z]{3})[a-z]*\.?\s*(\d{1,2})/); return m ? (m[1].toUpperCase() + String(m[2]).padStart(2, '0')) : ''; }
+function shotLabel(s, wc){
+  const core = [dayCode(s), postCode(s)];
+  if(s.beat) core.push('b' + s.beat);
+  const slug = slug16(s.action || s.framing || 'shot');
+  return (wc ? wc + '_' : '') + core.join('-') + (slug ? '_' + slug : '');
+}
+
+function buildCallSheetMd(weekLabel, lightNote, blocks, summary, master){
+  const wc = weekCode(weekLabel);
+  let s = '# ' + (weekLabel || 'Shoot day') + '\n\n';
+  if(lightNote) s += '> ' + lightNote + '\n\n';
+  s += '**' + summary.shots + ' shots · ' + summary.locations + ' locations · ' + summary.outfits + ' outfits · ' +
+       summary.golden + ' golden-hour · ' + summary.night + ' night · ~' + fmtMinutes(summary.estimateMin) + '**\n';
+  for(const b of blocks){
+    s += '\n## ' + b.title + (b.constraint ? '  ⚑ ' + b.window : '  (' + b.window + ')') + '\n';
+    for(const sh of b.shots){
+      const bits = [];
+      if((sh.wardrobe || '').trim()) bits.push('wardrobe: ' + sh.wardrobe.trim());
+      if((sh.props || []).length) bits.push('props: ' + sh.props.join(', '));
+      if((sh.onScreenText || '').trim()) bits.push('text: “' + sh.onScreenText.trim() + '”');
+      const meta = shotMeta(sh);   // "close-up · 2s"
+      s += '- [ ] `' + shotLabel(sh, wc) + '` **' + shotSource(sh) + '**' + (meta ? ' (' + meta + ')' : '') + ' ' + (sh.action || '').trim() +
+           (bits.length ? ' — ' + bits.join(' — ') : '') + '\n';
+    }
+  }
+  s += '\n## Wardrobe — pack once\n';
+  for(const o of master.outfits) s += '- ' + o.name + ' (' + o.count + ')' + (o.days.length ? ' — ' + o.days.join(', ') : '') + '\n';
+  s += '\n## Props — pack once\n';
+  for(const pr of master.props) s += '- ' + pr.name + ' (' + pr.count + ')\n';
+  return s;
+}
+
+function csvCell(v){ const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+// sort key for the chosen grouping; secondary keys keep it tidy within a group
+function shotSortKey(s, priority){
+  if(priority === 'light')  return [LIGHT_ORDER[s.light] ?? 99, s.location || '', s.day || '', s.beat || 0];
+  if(priority === 'outfit') return [((s.wardrobe || '').trim() || '~'), (LOC_ORDER[s.location] ?? 99), s.day || '', s.beat || 0];
+  return [(LOC_ORDER[s.location] ?? 99), (LIGHT_ORDER[s.light] ?? 99), s.day || '', s.beat || 0];   // location
+}
+function sortShots(shots, priority){
+  return [...shots].sort((a, b) => {
+    const ka = shotSortKey(a, priority), kb = shotSortKey(b, priority);
+    for(let i = 0; i < ka.length; i++){ if(ka[i] < kb[i]) return -1; if(ka[i] > kb[i]) return 1; }
+    return 0;
+  });
+}
+function buildCsv(shots, priority, weekLabel){
+  const wc = weekCode(weekLabel);
+  const cols = ['label','day','post','beat','duration','location','light','framing','action','wardrobe','props','onScreenText','audioCue'];
+  const head = cols.join(',');
+  const rows = sortShots(shots, priority || 'location').map(s =>
+    cols.map(c => csvCell(c === 'label' ? shotLabel(s, wc) : c === 'props' ? (s.props || []).join('; ') : s[c])).join(','));
+  return head + '\n' + rows.join('\n') + '\n';
+}
+/* ======================== PURE-LOGIC-END ============================== */
+
+/* ============================ AI key (shared) ======================== */
+const AI_KEY_LS = 'mosun-anthropic-key';
+const AI_MODEL = 'claude-opus-4-8';
+const $ = id => document.getElementById(id);
+function setMsg(t, err){ const m = $('msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
+function getKey(){ return localStorage.getItem(AI_KEY_LS) || ''; }
+function keyOpen(){ return !$('keyIn').classList.contains('hidden'); }
+function renderKeyBar(){
+  const has = !!getKey();
+  $('keySet').classList.toggle('hidden', !(has && !keyOpen()));
+  $('keyBtn').textContent = keyOpen() ? 'Save key' : (has ? 'Change key' : 'Set AI key');
+}
+function openKeyInput(){ const inp = $('keyIn'); inp.classList.remove('hidden'); inp.value = ''; inp.focus(); renderKeyBar(); }
+function commitKey(){
+  const inp = $('keyIn'); const v = inp.value.trim();
+  if(v){ localStorage.setItem(AI_KEY_LS, v); setMsg('AI key saved ✓'); setTimeout(() => setMsg(''), 1600); }
+  inp.value = ''; inp.classList.add('hidden'); renderKeyBar();
+  return !!v;
+}
+function keyBtnClick(){ if(keyOpen()) commitKey(); else openKeyInput(); }
+// save a key typed into a still-open field right before we need it
+function ensureKeyFromInput(){ if(!getKey() && keyOpen() && $('keyIn').value.trim()) commitKey(); }
+async function claudeJSON(userText, schema, maxTokens){
+  const key = getKey(); if(!key) throw new Error('no API key');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 8192, output_config: { format: { type: 'json_schema', schema } }, messages: [{ role: 'user', content: userText }] }),
+  });
+  if(!res.ok){ throw new Error('API ' + res.status + ' — ' + (await res.text()).slice(0, 180)); }
+  const data = await res.json();
+  const block = (data.content || []).find(b => b.type === 'text');
+  if(!block) throw new Error('empty response');
+  return JSON.parse(block.text);
+}
+
+/* ============================== PDF ================================== */
+async function extractPdf(file){
+  if(!window.pdfjsLib) throw new Error('pdf.js not loaded');
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  let out = '';
+  for(let p = 1; p <= doc.numPages; p++){
+    const tc = await (await doc.getPage(p)).getTextContent();
+    out += tc.items.map(i => i.str + (i.hasEOL ? '\n' : ' ')).join('') + '\n\n';
+  }
+  return out;
+}
+async function loadPdfFile(file){
+  if(!file || !/\.pdf$/i.test(file.name)){ setMsg('Drop a .pdf file.', true); return; }
+  setMsg('Reading ' + file.name + '…');
+  try{ $('scripts').value = await extractPdf(file); setMsg('Loaded ' + file.name + ' — ' + $('scripts').value.length + ' chars'); setTimeout(() => setMsg(''), 2200); }
+  catch(e){ console.error(e); setMsg('PDF read failed: ' + e.message, true); }
+}
+
+/* ============================== Parse =============================== */
+function parseSchema(){
+  return {
+    type: 'object', additionalProperties: false, required: ['weekLabel', 'lightNote', 'shots'],
+    properties: {
+      weekLabel: { type: 'string' },
+      lightNote: { type: 'string' },
+      shots: { type: 'array', items: {
+        type: 'object', additionalProperties: false,
+        required: ['day', 'post', 'beat', 'duration', 'location', 'light', 'framing', 'action', 'wardrobe', 'props', 'onScreenText', 'audioCue'],
+        properties: {
+          day: { type: 'string' }, post: { type: 'string' }, beat: { type: 'integer' }, duration: { type: 'number' },
+          location: { type: 'string', enum: LOCATIONS }, light: { type: 'string', enum: LIGHTS },
+          framing: { type: 'string' }, action: { type: 'string' }, wardrobe: { type: 'string' },
+          props: { type: 'array', items: { type: 'string' } }, onScreenText: { type: 'string' }, audioCue: { type: 'string' },
+        },
+      } },
+    },
+  };
+}
+const PARSE_PROMPT =
+  'You are turning a full week of MOSUN TikTok scripts into a flat shoot-shot list for a batched shoot day. ' +
+  'MOSUN is a Lagos-born, London/Taipei-based music artist; scripts are organized by Day → POST → a shot-by-shot ' +
+  'FULL SCRIPT with [a-bs] timecodes, plus SOUND, TEXT OVERLAYS, and a "where". Emit one shot per timecoded beat.\n' +
+  'For each shot: day = e.g. "Mon · Jun 8"; post = short id like "P1" (+ a few words of the post title if helpful); ' +
+  'beat = its order in that post (1,2,3…); duration = the shot LENGTH in seconds from the [a-bs] marker (estimate ~2s if absent). ' +
+  'location = map the scene to one of the allowed values (a Taipei lane/street = taipei-street; the apartment/home studio = studio-apartment; ' +
+  'rooftop; café; transit = train/scooter/MRT; stage; gear-closeup = hands on synth/keys/interface; else other). ' +
+  'light = infer from the time/scene (dawn or ~6:30am or sunset = golden-hour; just-after-sunset = blue-hour; night out/after dark = night; ' +
+  'midday exterior = day; interior = indoor). framing = the shot SIZE/type — choose the most fitting: wide, medium, close-up, ' +
+  'extreme close-up, macro (tight detail, e.g. fingers on keys / a fader), POV, low-angle, high-angle, overhead, handheld, static, tracking ' +
+  '(append a movement/angle only if essential, e.g. "close-up handheld"). action = one concise line of what happens. ' +
+  'wardrobe = INFER a plausible outfit from the vibe even if unstated (it is editable); props = INFER visible objects to bring (array, can be empty). ' +
+  'onScreenText = the literal overlay text for that beat (empty if none); audioCue = the SOUND note. ' +
+  'weekLabel = the week header (e.g. "Week of Jun 8–14, 2026"). ' +
+  'lightNote = a one-line estimate of that week\'s Taipei golden-hour windows (≈ dawn and dusk clock times) — note it is approximate. ' +
+  'Return only the structured result.';
+
+async function parseWeek(){
+  const text = $('scripts').value.trim();
+  if(!text){ setMsg('Paste scripts or drop a PDF first.', true); return; }
+  ensureKeyFromInput();
+  if(!getKey()){ setMsg('Set your AI key first.', true); openKeyInput(); return; }
+  const btn = $('parseBtn'); btn.classList.add('busy'); btn.disabled = true;
+  setMsg('Parsing the week with Claude…');
+  try{
+    const out = await claudeJSON(PARSE_PROMPT + '\n\nSCRIPTS:\n' + text, parseSchema(), 16000);
+    state.weekLabel = out.weekLabel || 'Shoot day';
+    state.lightNote = out.lightNote || '';
+    state.shots = (out.shots || []);
+    render();
+    setMsg('Parsed ' + state.shots.length + ' shots'); setTimeout(() => setMsg(''), 2400);
+  }catch(e){ console.error(e); setMsg('Parse failed: ' + e.message, true); }
+  finally{ btn.classList.remove('busy'); btn.disabled = false; }
+}
+
+/* ============================== Render ============================== */
+const state = { weekLabel: '', lightNote: '', shots: [], blocks: [] };
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// compact source chip for the UI: "Sat · Jun 13 · P2" (full post title can be long)
+function shortPost(p){ p = String(p || ''); const m = p.match(/P\s?\d+/i); return m ? m[0].replace(/\s+/, '') : p.slice(0, 8); }
+function srcChip(s){ return [s.day, s.post ? shortPost(s.post) : ''].filter(Boolean).join(' · ') || '—'; }
+
+function render(){
+  state.blocks = clusterShots(state.shots, $('priority').value);
+  $('sheet').classList.remove('hidden');
+  $('weekLabel').textContent = state.weekLabel;
+  $('lightNote').innerHTML = state.lightNote ? '<b>Light:</b> ' + esc(state.lightNote) : '';
+  const sm = summarize(state.shots);
+  $('summary').innerHTML =
+    stat(sm.shots, 'shots') + stat(sm.locations, 'locations') + stat(sm.outfits, 'outfits') +
+    stat(sm.golden, 'golden-hour', true) + stat(sm.night, 'night') + stat('~' + fmtMinutes(sm.estimateMin), 'est. time');
+  renderBlocks();
+  renderMaster();
+}
+function stat(num, cap, acc){ return '<div class="stat"><div class="num' + (acc ? ' acc' : '') + '">' + esc(num) + '</div><div class="cap">' + cap + '</div></div>'; }
+
+function renderBlocks(){
+  const wrap = $('blocks'); wrap.innerHTML = '';
+  const wc = weekCode(state.weekLabel);
+  state.blocks.forEach((b, bi) => {
+    const div = document.createElement('div');
+    div.className = 'block' + (b.constraint ? ' constraint' : '');
+    div.draggable = true; div.dataset.bi = bi;
+    const rows = b.shots.map(sh => {
+      const sub = [];
+      if((sh.wardrobe || '').trim()) sub.push('<b>fit:</b> ' + esc(sh.wardrobe.trim()));
+      if((sh.props || []).length) sub.push('<b>props:</b> ' + esc(sh.props.join(', ')));
+      const meta = shotMeta(sh);
+      return '<label class="shot"><input type="checkbox">' +
+        '<span class="src">' + esc(srcChip(sh)) + '</span>' +
+        '<span class="det">' +
+        '<span class="flabel" title="name the recorded clip this">' + esc(shotLabel(sh, wc)) + '</span>' +
+        (meta ? '<span class="shotmeta">' + esc(meta) + '</span>' : '') +
+        '<span class="act">' + esc(sh.action || '') + '</span>' +
+        (sub.length ? '<span class="sub">' + sub.join(' &nbsp;·&nbsp; ') + '</span>' : '') +
+        ((sh.onScreenText || '').trim() ? '<span class="ost">“' + esc(sh.onScreenText.trim()) + '”</span>' : '') +
+        '</span></label>';
+    }).join('');
+    div.innerHTML =
+      '<div class="bhead"><span class="grip no-print">⋮⋮</span>' +
+        '<span class="btitle">' + esc(b.title) + '</span>' +
+        '<span class="bwin">' + (b.constraint ? '⚑ ' : '') + esc(b.window) + '</span>' +
+        '<span class="bcount">' + b.shots.length + ' shot' + (b.shots.length > 1 ? 's' : '') + '</span></div>' +
+      rows;
+    wrap.appendChild(div);
+  });
+  wireDrag();
+}
+function renderMaster(){
+  const m = wardrobePropsMaster(state.shots);
+  const col = (title, items, fmt) => '<div class="mcol"><h3>' + title + '</h3><ul>' +
+    (items.length ? items.map(fmt).join('') : '<li class="muted">none inferred</li>') + '</ul></div>';
+  $('master').innerHTML =
+    col('Wardrobe', m.outfits, o => '<li><span>' + esc(o.name) + (o.days.length ? ' <span class="c">' + esc(o.days.join(', ')) + '</span>' : '') + '</span><span class="c">×' + o.count + '</span></li>') +
+    col('Props', m.props, p => '<li><span>' + esc(p.name) + '</span><span class="c">×' + p.count + '</span></li>');
+}
+
+/* drag-to-reorder blocks */
+let dragBi = null;
+function wireDrag(){
+  document.querySelectorAll('.block').forEach(el => {
+    el.addEventListener('dragstart', () => { dragBi = +el.dataset.bi; el.style.opacity = '.5'; });
+    el.addEventListener('dragend', () => { el.style.opacity = ''; });
+    el.addEventListener('dragover', e => e.preventDefault());
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      const to = +el.dataset.bi;
+      if(dragBi == null || dragBi === to) return;
+      const [m] = state.blocks.splice(dragBi, 1);
+      state.blocks.splice(to, 0, m);
+      renderBlocks();
+    });
+  });
+}
+
+function download(name, text, mime){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ============================== Wire-up ============================== */
+$('parseBtn').addEventListener('click', parseWeek);
+$('priority').addEventListener('change', () => { if(state.shots.length) render(); });
+$('printBtn').addEventListener('click', () => window.print());
+$('keyBtn').addEventListener('click', keyBtnClick);
+$('keyIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitKey(); } });
+$('mdBtn').addEventListener('click', () => {
+  const sm = summarize(state.shots), m = wardrobePropsMaster(state.shots);
+  const blocks = clusterShots(state.shots, $('priority').value);   // downloads follow the Group by selector
+  download('shoot-day.md', buildCallSheetMd(state.weekLabel, state.lightNote, blocks, sm, m), 'text/markdown');
+});
+$('csvBtn').addEventListener('click', () => download('shoot-shots.csv', buildCsv(state.shots, $('priority').value, state.weekLabel), 'text/csv'));
+
+const drop = $('drop');
+const pick = () => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.pdf';
+  i.onchange = () => i.files[0] && loadPdfFile(i.files[0]); i.click(); };
+drop.addEventListener('click', pick);
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer.files[0]) loadPdfFile(e.dataTransfer.files[0]); });
+
+if(getKey()) $('keyIn').classList.add('hidden');   // key already saved → collapse the field
+renderKeyBar();
+</script>
+</body>
+</html>
