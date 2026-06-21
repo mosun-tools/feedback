@@ -26,7 +26,7 @@ vm.runInContext(
   taxo[0] + '\n' + cfg[0] + '\n' + pure[1] + '\n' +
   ';globalThis.api = { slugify, fmtClock, srtTimestamp, scoreClip, rankClips, isGap, clipOutName, ' +
   'buildShotlist, buildSrt, buildMusic, buildToFilm, summarize, computeCut, buildPrecutShotlist, ' +
-  'buildBuildCommand, beatBase, WEIGHTS, GAP_THRESHOLD, TAG_KEYS };',
+  'buildBuildCommand, beatBase, clipLabelSlug, labelBonus, WEIGHTS, GAP_THRESHOLD, LABEL_TOKEN_WEIGHT, TAG_KEYS };',
   ctx
 );
 const A = ctx.api;
@@ -81,6 +81,28 @@ check('isGap respects the threshold', () => {
   assert.equal(A.isGap({ score: 1 }, 2), true);
   assert.equal(A.isGap({ score: 2 }, 2), false);
   assert.equal(A.isGap(undefined, 2), true);
+});
+
+// ---- label-aware matching (plan → shoot → catalog → cut) ----
+check('clipLabelSlug extracts the slug from a planner-named clip, ignores raw', () => {
+  assert.equal(A.clipLabelSlug('JUN08_MON-P1-b2_walk-a-misty-lane.MOV'), 'walk-a-misty-lane');
+  assert.equal(A.clipLabelSlug('IMG_8163.MOV'), '');
+});
+check('labelBonus rewards token overlap between label-slug and beat action', () => {
+  const named = { file: 'JUN08_MON-P1-b2_walk-a-misty-lane.MOV', tags: {} };
+  const beat = { action: 'walk down a misty lane' };
+  // shared big tokens (>2 chars): walk, misty, lane → 3 × LABEL_TOKEN_WEIGHT
+  assert.equal(A.labelBonus(beat, named), 3 * A.LABEL_TOKEN_WEIGHT);
+  assert.equal(A.labelBonus(beat, { file: 'IMG_8163.MOV', tags: {} }), 0);
+});
+check('a named clip wins its beat over a better-tagged unnamed clip', () => {
+  const beat = { action: 'walk a misty lane', setting: ['studio'], time: [], shot: [], mood: [] };
+  const named = { file: 'JUN08_MON-P1-b2_walk-a-misty-lane.MOV', tags: { setting: [], time: [], action: [], shot: [], mood: [] } };
+  const tagged = { file: 'b.mov', tags: { setting: ['studio'], time: [], action: [], shot: [], mood: [] } };
+  const ranked = A.rankClips(beat, [tagged, named], A.WEIGHTS);
+  assert.equal(ranked[0].file, named.file);   // label match sorts first
+  assert.equal(ranked[0].byLabel, true);
+  assert.ok(ranked[0].score >= A.GAP_THRESHOLD);   // not a gap → becomes the chosen clip
 });
 
 // ---- export artifacts ----

@@ -27,11 +27,11 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(
   taxo[0] + '\n' + pure[1] + '\n' +
-  ';globalThis.api = { fmtDuration, newClip, isTagged, buildMergedCatalog, matchesSearch, needsReview, sanitizeAITags, applyAISuggestion, TAG_KEYS };',
+  ';globalThis.api = { fmtDuration, newClip, isTagged, buildMergedCatalog, matchesSearch, needsReview, sanitizeAITags, applyAISuggestion, labelFromFile, parsedLabel, TAG_KEYS };',
   ctx
 );
 const { fmtDuration, newClip, isTagged, buildMergedCatalog, matchesSearch,
-        needsReview, sanitizeAITags, applyAISuggestion, TAG_KEYS } = ctx.api;
+        needsReview, sanitizeAITags, applyAISuggestion, labelFromFile, parsedLabel, TAG_KEYS } = ctx.api;
 
 let n = 0, pass = 0;
 function check(name, fn){ n++; try{ fn(); pass++; console.log('  ✓ ' + name); }
@@ -58,9 +58,10 @@ check('fmtDuration handles unknown', () => {
 check('newClip matches the schema contract', () => {
   const c = newClip('IMG_0001.MOV', ISO, idFn);
   assert.deepEqual(Object.keys(c).sort(),
-    ['addedAt','duration','file','id','notes','song','source','tagged','tags'].sort());
+    ['addedAt','duration','file','id','label','notes','song','source','tagged','tags'].sort());
   assert.equal(c.version, undefined);            // version lives on the root, not the clip
   assert.equal(c.file, 'IMG_0001.MOV');
+  assert.equal(c.label, 'IMG_0001');             // label = filename stem
   assert.equal(c.duration, 0);
   assert.equal(c.addedAt, ISO);
   assert.equal(c.tagged, false);
@@ -99,6 +100,29 @@ check('buildMergedCatalog preserves tags + id for known files', () => {
   assert.equal(a.id, savedId);                   // stable id survived
   assert.equal(a.tagged, true);
   assert.equal(fresh.tagged, false);
+});
+// ---- shot labels (plan → shoot → catalog link) ----
+check('labelFromFile strips the extension', () => {
+  assert.equal(labelFromFile('JUN08_MON-P1-b2_walk-a-lane.MOV'), 'JUN08_MON-P1-b2_walk-a-lane');
+  assert.equal(labelFromFile('IMG_8163.mov'), 'IMG_8163');
+});
+check('parsedLabel breaks out a planner label, ignores raw names', () => {
+  const p = parsedLabel('JUN08_MON-P1-b2_walk-a-lane.MOV');
+  assert.equal(p.week, 'JUN08'); assert.equal(p.day, 'MON'); assert.equal(p.post, 'P1');
+  assert.equal(p.beat, 2); assert.equal(p.slug, 'walk-a-lane');
+  assert.equal(parsedLabel('IMG_8163.mov'), null);     // raw camera name → not a planner label
+});
+check('buildMergedCatalog backfills label on old (label-less) clips', () => {
+  const old = [{ ...newClip('JUN08_MON-P1-b2_walk.MOV', ISO, idFn) }];
+  delete old[0].label;                                  // simulate a pre-label catalog.json
+  const merged = buildMergedCatalog(old, ['JUN08_MON-P1-b2_walk.MOV'], ISO, idFn);
+  assert.equal(merged[0].label, 'JUN08_MON-P1-b2_walk');
+});
+check('matchesSearch finds a clip by its label text', () => {
+  const c = newClip('JUN08_MON-P1-b2_walk.MOV', ISO, idFn);
+  const none = Object.fromEntries(TAG_KEYS.map(k => [k, []]));
+  assert.equal(matchesSearch(c, none, 'MON-P1'), true);
+  assert.equal(matchesSearch(c, none, 'b2'), true);
 });
 check('buildMergedCatalog retains records for absent files', () => {
   const have = buildMergedCatalog([], ['gone.mov'], ISO, idFn);

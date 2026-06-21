@@ -86,6 +86,7 @@ input.txt:focus{ border-color:var(--saffron); }
 .beat .head{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
 .beat .idx{ font-family:var(--font-display); font-size:15px; letter-spacing:0.1em; color:var(--saffron); }
 .beat .time{ font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--n3); font-variant-numeric:tabular-nums; }
+.beat .bylabel{ font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink); background:var(--saffron); border-radius:var(--r-input); padding:1px 7px; }
 .beat .ost{ font-size:15px; color:var(--cream); }
 .beat .ost:empty::before{ content:'(no on-screen text)'; color:var(--n4); font-size:13px; }
 .beat .meta{ font-size:12px; color:var(--n3); }
@@ -210,6 +211,7 @@ const TAG_KEYS = TAG_GROUPS.map(g => g.key);
 /* Editable matching config */
 const WEIGHTS = { setting:2, time:1, action:2, shot:1, mood:1 };
 const GAP_THRESHOLD = 2;     // best tag-score below this → the beat is "TO FILM"
+const LABEL_TOKEN_WEIGHT = 4;   // each shared token with a clip's planner label-slug strongly favors that named clip
 const BIG_FILE_BYTES = 300 * 1024 * 1024;   // skip-copy threshold (reference by path instead)
 
 /* =======================================================================
@@ -237,9 +239,28 @@ function srtTimestamp(sec){
   return pad(h, 2) + ':' + pad(m, 2) + ':' + pad(s, 2) + ',' + pad(ms, 3);
 }
 
-// Weighted tag overlap between a parsed beat and a catalog clip.
+// The slug part of a Shoot-Day-Planner filename label (WEEK_DAY-POST-bN_slug), else ''.
+function clipLabelSlug(file){
+  const stem = String(file || '').replace(/\.[^./]+$/, '');
+  const m = stem.match(/^(?:[A-Za-z0-9]{3,8}_)?[A-Za-z]{2,4}-P\d+-b\d+_(.+)$/);
+  return m ? m[1].toLowerCase() : '';
+}
+function bigTokens(s){ return String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 2); }
+// Bonus when a clip was *named* (via the planner) for this beat — token overlap
+// between the clip's label-slug and the beat's action makes the intended clip win.
+function labelBonus(beat, clip){
+  const cs = clipLabelSlug(clip && clip.file);
+  if(!cs) return 0;
+  const have = new Set(bigTokens(cs));
+  if(!have.size) return 0;
+  let hit = 0;
+  for(const t of bigTokens(beat && beat.action)) if(have.has(t)) hit++;
+  return hit * LABEL_TOKEN_WEIGHT;
+}
+
+// Weighted tag overlap between a parsed beat and a catalog clip, plus a label bonus.
 function scoreClip(beat, clip, weights){
-  let total = 0;
+  let total = labelBonus(beat, clip);
   for(const g of TAG_GROUPS){
     const w = (weights && weights[g.key]) || 1;
     const bt = (beat && beat[g.key]) || [];
@@ -253,12 +274,13 @@ function scoreClip(beat, clip, weights){
   return total;
 }
 
-// Rank clips for a beat, best first; drops zero-score clips.
+// Rank clips for a beat, best first; drops zero-score clips. byLabel flags a
+// clip the planner named for this beat (it should win its beat).
 function rankClips(beat, clips, weights){
   return clips
-    .map(c => ({ file: c.file, score: scoreClip(beat, c, weights) }))
+    .map(c => ({ file: c.file, score: scoreClip(beat, c, weights), byLabel: labelBonus(beat, c) > 0 }))
     .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => (b.byLabel - a.byLabel) || (b.score - a.score));
 }
 
 function isGap(top, threshold){ return !top || top.score < (threshold == null ? GAP_THRESHOLD : threshold); }
@@ -643,7 +665,7 @@ async function rerank(){
       const c = clipByFile(r.file) || {};
       return { file: r.file, score: r.score, tags: c.tags, notes: c.notes || '' };
     }),
-  })).filter(p => p.candidates.length > 1);   // nothing to reorder otherwise
+  })).filter(p => p.candidates.length > 1 && !state.assign[p.index].ranked.some(r => r.byLabel));   // skip label-locked beats
   if(!beatsPayload.length) return;
 
   const schema = {
@@ -668,7 +690,8 @@ async function rerank(){
     for(const f of (pick.order || [])) if(have.has(f)){ reordered.push(have.get(f)); have.delete(f); }
     for(const r of a.ranked) if(have.has(r.file)) reordered.push(r);   // keep any the model dropped
     a.ranked = reordered;
-    a.chosen = (reordered[0] && reordered[0].score >= GAP_THRESHOLD) ? reordered[0].file : a.chosen;
+    const labeled = a.ranked.find(r => r.byLabel);   // a named clip always wins its beat
+    a.chosen = labeled ? labeled.file : ((reordered[0] && reordered[0].score >= GAP_THRESHOLD) ? reordered[0].file : a.chosen);
   }
 }
 
@@ -692,8 +715,9 @@ function renderReview(){
     const tags = TAG_KEYS.flatMap(k => (b[k] || []).map(v => '<span class="tag">' + escapeHtml(v) + '</span>')).join('');
     const opts = a.ranked.map(r =>
       '<option value="' + escapeHtml(r.file) + '"' + (r.file === a.chosen ? ' selected' : '') + '>' +
-      escapeHtml(r.file) + ' · ' + r.score + '</option>').join('');
+      escapeHtml(r.file) + ' · ' + r.score + (r.byLabel ? ' ★ label' : '') + '</option>').join('');
     const gapSel = '<option value=""' + (gap ? ' selected' : '') + '>— TO FILM —</option>';
+    const chosenByLabel = a.chosen && (a.ranked.find(r => r.file === a.chosen) || {}).byLabel;
 
     card.innerHTML =
       '<div class="thumb" data-file="' + escapeHtml(a.chosen || '') + '">' +
@@ -701,7 +725,8 @@ function renderReview(){
       '</div>' +
       '<div class="body">' +
         '<div class="head"><span class="idx">' + pad(i + 1, 2) + '</span>' +
-          '<span class="time">' + fmtClock(b.tStart) + '–' + fmtClock(b.tEnd) + '</span></div>' +
+          '<span class="time">' + fmtClock(b.tStart) + '–' + fmtClock(b.tEnd) + '</span>' +
+          (chosenByLabel ? '<span class="bylabel" title="matched by the clip\'s planner label">★ by label</span>' : '') + '</div>' +
         '<div class="ost">' + escapeHtml(b.onScreenText || '') + '</div>' +
         (b.needDescription ? '<div class="meta"><b>Needs:</b> ' + escapeHtml(b.needDescription) + '</div>' : '') +
         (b.audioCue ? '<div class="meta"><b>Audio:</b> ' + escapeHtml(b.audioCue) + '</div>' : '') +

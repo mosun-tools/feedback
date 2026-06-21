@@ -82,6 +82,8 @@ header{ display:flex; align-items:flex-end; justify-content:space-between; gap:2
   background:rgba(0,0,0,.6); padding:2px 7px; border-radius:var(--r-input); font-variant-numeric:tabular-nums; }
 .thumb .badge{ position:absolute; left:8px; top:8px; width:8px; height:8px; border-radius:50%; background:var(--saffron); box-shadow:0 0 10px var(--saffron); }
 .card .meta{ padding:12px; }
+.card .plabel{ font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:10px; letter-spacing:0.06em; color:var(--saffron);
+  border:1px solid rgba(246,162,92,0.4); border-radius:var(--r-input); padding:1px 6px; margin-bottom:6px; display:inline-block; }
 .card .fn{ font-size:13px; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .card .tagline{ font-size:11px; color:var(--n3); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.04em; }
 .card .tagline.untag{ color:var(--saffron); }
@@ -235,10 +237,18 @@ function fmtDuration(sec){
   return mm + ':' + String(ss).padStart(2, '0');
 }
 
+// The shot label = the filename without its extension. When a clip was named
+// from the Shoot-Day Planner (WEEK_DAY-POST-bN_slug), parsedLabel breaks it out.
+function labelFromFile(file){ return String(file || '').replace(/\.[^./]+$/, ''); }
+function parsedLabel(file){
+  const m = labelFromFile(file).match(/^(?:([A-Z0-9]{3,8})_)?([A-Za-z]{2,4})-(P\d+)-b(\d+)_(.+)$/);
+  return m ? { week: m[1] || '', day: m[2].toUpperCase(), post: m[3].toUpperCase(), beat: +m[4], slug: m[5] } : null;
+}
+
 function newClip(file, nowISO, idFn){
   const tags = {};
   for(const k of TAG_KEYS) tags[k] = [];
-  return { id: idFn(), file, duration: 0, addedAt: nowISO, tagged: false,
+  return { id: idFn(), file, label: labelFromFile(file), duration: 0, addedAt: nowISO, tagged: false,
            source: 'manual', tags, song: '', notes: '' };
 }
 
@@ -258,11 +268,12 @@ function buildMergedCatalog(existingClips, presentNames, nowISO, idFn){
   for(const name of presentNames){
     const prev = byFile.get(name);
     const clip = prev ? prev : newClip(name, nowISO, idFn);
+    if(!clip.label) clip.label = labelFromFile(clip.file);   // backfill old catalogs
     clip.tagged = isTagged(clip);            // keep flag in sync with tags
     clips.push(clip);
   }
   for(const c of (existingClips || [])){
-    if(!present.has(c.file)) clips.push(c);  // absent-but-known, keep its tags
+    if(!present.has(c.file)){ if(!c.label) c.label = labelFromFile(c.file); clips.push(c); }  // absent-but-known
   }
   return clips;
 }
@@ -277,7 +288,7 @@ function matchesSearch(clip, filters, text){
   }
   if(text && text.trim()){
     const t = text.trim().toLowerCase();
-    const hay = (clip.file + ' ' + (clip.song || '') + ' ' + (clip.notes || '')).toLowerCase();
+    const hay = (clip.file + ' ' + (clip.label || '') + ' ' + (clip.song || '') + ' ' + (clip.notes || '')).toLowerCase();
     if(!hay.includes(t)) return false;
   }
   return true;
@@ -502,6 +513,9 @@ function renderGrid(){
     card.dataset.file = clip.file;
     const tagged = isTagged(clip);
     const summary = TAG_KEYS.flatMap(k => clip.tags[k]).slice(0, 4).join(' · ');
+    const pl = parsedLabel(clip.file);   // named from the planner?
+    const plChip = pl ? '<div class="plabel" title="planned shot from the shoot planner">' +
+      escapeHtml([pl.week, pl.day, pl.post, 'b' + pl.beat].filter(Boolean).join(' · ')) + '</div>' : '';
     card.innerHTML =
       '<div class="thumb">' +
         badgeHtml(clip) +
@@ -509,6 +523,7 @@ function renderGrid(){
         '<span class="dur">' + fmtDuration(clip.duration || null) + '</span>' +
       '</div>' +
       '<div class="meta">' +
+        plChip +
         '<div class="fn">' + escapeHtml(clip.file) + '</div>' +
         '<div class="tagline ' + (tagged ? '' : 'untag') + '">' +
           escapeHtml(tagged ? (summary || '—') : 'untagged') + '</div>' +
