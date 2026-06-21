@@ -26,7 +26,8 @@ vm.runInContext(
   taxo[0] + '\n' + cfg[0] + '\n' + pure[1] + '\n' +
   ';globalThis.api = { slugify, fmtClock, srtTimestamp, scoreClip, rankClips, isGap, clipOutName, ' +
   'buildShotlist, buildSrt, buildMusic, buildToFilm, summarize, computeCut, buildPrecutShotlist, ' +
-  'buildBuildCommand, beatBase, clipLabelSlug, labelBonus, WEIGHTS, GAP_THRESHOLD, LABEL_TOKEN_WEIGHT, TAG_KEYS };',
+  'buildBuildCommand, beatBase, clipLabelSlug, labelBonus, sumBeatDur, musicTokens, musicOutBase, ' +
+  'buildCaptionsReadme, WEIGHTS, GAP_THRESHOLD, LABEL_TOKEN_WEIGHT, TAG_KEYS };',
   ctx
 );
 const A = ctx.api;
@@ -133,6 +134,12 @@ check('buildSrt numbers + times only text overlays', () => {
   assert.ok(srt.includes('2\n00:00:02,000 --> 00:00:05,000\nthe work'));
   assert.ok(!srt.includes('3\n'));   // beat 3 has no on-screen text → skipped
 });
+check('buildCaptionsReadme: honest (CapCut ignores file styling) + preset recipe', () => {
+  const r = A.buildCaptionsReadme();
+  assert.ok(r.includes('Futura') && r.includes('#E8E6D9') && r.includes('center'));
+  assert.ok(/ignores styling/i.test(r));                         // honest about the CapCut limitation
+  assert.ok(r.includes('Apply to all') && r.toLowerCase().includes('preset'));
+});
 check('buildMusic carries recommendation + per-beat cues', () => {
   const m = A.buildMusic('warm lo-fi, 80 BPM', beats);
   assert.ok(m.includes('warm lo-fi, 80 BPM'));
@@ -222,6 +229,48 @@ check('buildBuildCommand structure: shebang, guard, encoder, trims, skip, previe
   assert.ok(sh.includes("'01_walking.mp4'") && sh.includes("'02_perform.mp4'"));
   assert.ok(sh.includes('skipped (not in folder): gone.MOV'));
   assert.ok(sh.includes('PREVIEW=1') && sh.includes('preview.mp4'));
+});
+
+// ---- music: find in ~/Desktop/sounds, trim to the edit, label to align ----
+check('sumBeatDur totals the script timeline', () => {
+  assert.equal(A.sumBeatDur([{ tStart: 0, tEnd: 2 }, { tStart: 2, tEnd: 5 }, { tStart: 5, tEnd: 7 }]), 7);
+});
+check('musicTokens: distinctive, deduped, longest-first, capped', () => {
+  assert.deepEqual(A.musicTokens("Follow That Tune — Gymskin"), ['gymskin', 'follow', 'that', 'tune']);
+  assert.deepEqual(A.musicTokens(''), []);
+});
+check('musicOutBase: numbered 00_MUSIC_NN_<slug> (no ext — copy keeps source ext)', () => {
+  assert.equal(A.musicOutBase(0, 'Drop Dead — Olivia Rodrigo'), '00_MUSIC_01_drop-dead-olivia-rodrigo');
+  assert.equal(A.musicOutBase(1, 'sub bass drone'), '00_MUSIC_02_sub-bass-drone');
+});
+check('buildBuildCommand finds EVERY sound + copies (untrimmed, distinct files)', () => {
+  const sh = A.buildBuildCommand(dryCuts, [], [
+    { query: 'sub bass drone' },
+    { query: 'modular arpeggiator' },
+  ]);
+  assert.ok(sh.includes('SOUNDS="$HOME/Desktop/sounds"'));
+  assert.ok(sh.includes('Finding 2 sound(s)'));                                   // BOTH sounds, not one
+  assert.ok(sh.includes('music_find ()') && sh.includes('for tok in "$@"'));      // shared loose matcher
+  assert.ok(sh.includes('case "$USED" in *"|$f|"*) continue'));                   // each sound picks a different file
+  assert.ok(sh.includes("M=$(music_find 'drone' 'bass' 'sub')"));                 // track 1 keywords
+  assert.ok(sh.includes("M=$(music_find 'arpeggiator' 'modular')"));              // track 2 keywords
+  assert.ok(sh.includes('cp "$M" \'00_MUSIC_01_sub-bass-drone\'."${M##*.}"'));    // copy, keep source ext
+  assert.ok(sh.includes('cp "$M" \'00_MUSIC_02_modular-arpeggiator\'."${M##*.}"'));
+  assert.ok(!sh.includes('ffmpeg') || !/ffmpeg .*-i "\$M"/.test(sh));             // no trimming of the audio
+});
+check('generated build.command is valid bash (bash -n)', () => {
+  const sh = A.buildBuildCommand(dryCuts, dryMissing, [{ query: 'follow that tune' }, { query: 'beat drop sfx' }]);
+  const dir = mkdtempSync(join(tmpdir(), 'mosun-bn-'));
+  const file = join(dir, 'build.command');
+  writeFileSync(file, sh);
+  let out = '', code = 0;
+  try{ execFileSync('/bin/bash', ['-n', file], { encoding: 'utf8' }); }
+  catch(e){ code = e.status || 1; out = (e.stdout || '') + (e.stderr || ''); }
+  assert.equal(code, 0, 'bash -n reported syntax errors:\n' + out);
+});
+check('buildBuildCommand omits music section when no usable tracks', () => {
+  assert.ok(!A.buildBuildCommand(dryCuts, [], []).includes('SOUNDS='));
+  assert.ok(!A.buildBuildCommand(dryCuts, [], [{ query: '' }]).includes('SOUNDS='));
 });
 
 // ---- build.command dry-run: actually execute it with ffmpeg forced absent ----

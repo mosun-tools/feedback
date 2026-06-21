@@ -319,6 +319,20 @@ function buildSrt(beats){
   return out.join('\n');
 }
 
+function buildCaptionsReadme(){
+  return '# Captions — keep them on-brand in CapCut\n\n' +
+    'Brand style: **Futura · #E8E6D9 (warm cream) · centered**, thin ink stroke or soft shadow, no boxes.\n\n' +
+    '**CapCut ignores styling from imported subtitle files** (both .srt and .ass — tested). There is no file you can import ' +
+    'that carries the font, colour, or position. So style it once in CapCut and reuse it:\n\n' +
+    '## One-time setup\n' +
+    '1. Import `captions.srt` (Captions → Import captions).\n' +
+    '2. Select one caption and set: font **Futura**, colour **#E8E6D9**, **center** alignment, thin ink stroke or soft shadow.\n' +
+    '3. **Apply to all** (styles every caption at once), then **Save as a text preset** named "MOSUN".\n\n' +
+    '## Every session after\n' +
+    'Import `captions.srt` → select all captions → tap the **MOSUN** preset. Presets persist across CapCut projects, so it is one tap.\n\n' +
+    '> Futura ships with macOS; on mobile CapCut pick the nearest geometric sans.\n';
+}
+
 function buildMusic(music, beats){
   let s = '# Music\n\n' + ((music || '').trim() || '(no sound recommendation in script)') + '\n';
   const cues = beats.filter(b => (b.audioCue || '').trim());
@@ -404,9 +418,21 @@ function buildPrecutShotlist(rows){
   return head + body + '\n';
 }
 
+// total assembled length = the script timeline (so the music bed spans the whole edit)
+function sumBeatDur(beats){ return (beats || []).reduce((s, b) => s + Math.max(0, (b.tEnd || 0) - (b.tStart || 0)), 0); }
+// distinctive search tokens from a song query, longest first (AND-matched against filenames)
+function musicTokens(query){
+  const seen = new Set(), out = [];
+  for(const t of String(query || '').toLowerCase().split(/[^a-z0-9]+/)) if(t.length > 1 && !seen.has(t)){ seen.add(t); out.push(t); }
+  return out.sort((a, b) => b.length - a.length).slice(0, 4);
+}
+function musicOutBase(i, query){ return '00_MUSIC_' + pad(i + 1, 2) + '_' + (slugify(query) || 'track'); }
+
 // cuts: [{ outName, source, srcOriginal, trimStart, handledDur, cleanIn, cleanOut }]
 // missing: [{ srcOriginal, reason }]
-function buildBuildCommand(cuts, missing){
+// tracks (optional): [{ query }] → each distinct sound is loosely matched in ~/Desktop/sounds
+//   and COPIED into the package (untrimmed); each track picks a different file.
+function buildBuildCommand(cuts, missing, tracks){
   const L = [];
   L.push('#!/bin/bash');
   L.push('# MOSUN pre-cut — double-click to trim each clip to its script beat (with handles).');
@@ -437,7 +463,41 @@ function buildBuildCommand(cuts, missing){
     L.push('echo "  skipped (' + (m.reason || 'missing source') + '): ' + (m.srcOriginal || '') + '"');
   }
   L.push('');
-  L.push('echo "Done — trimmed clips are in this folder. Drag into CapCut; import captions.srt; add music from MUSIC.txt."');
+
+  // --- music: loosely match EVERY distinct sound in ~/Desktop/sounds and COPY it in (untrimmed) ---
+  const useTracks = (tracks || []).map(t => ({ t, toks: musicTokens(t.query) })).filter(x => x.toks.length);
+  if(useTracks.length){
+    const FIND = 'find "$SOUNDS" -type f \\( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.wav" -o -iname "*.aac" -o -iname "*.flac" -o -iname "*.aif" -o -iname "*.aiff" \\) 2>/dev/null';
+    L.push('SOUNDS="$HOME/Desktop/sounds"');
+    L.push('echo "Finding ' + useTracks.length + ' sound(s) in $SOUNDS …"');
+    L.push('USED="|"');
+    // loose matcher: echoes the unused file matching the MOST of the given keywords
+    L.push('music_find () {');
+    L.push('  local best="" bestn=0 f name n tok');
+    L.push('  while IFS= read -r f; do');
+    L.push('    case "$USED" in *"|$f|"*) continue ;; esac');     // already taken by another sound
+    L.push('    name=$(basename "$f" | tr "[:upper:]" "[:lower:]"); n=0');
+    L.push('    for tok in "$@"; do case "$name" in *"$tok"*) n=$((n+1)) ;; esac; done');
+    L.push('    if [ "$n" -gt "$bestn" ]; then bestn="$n"; best="$f"; fi');
+    L.push('  done < <(' + FIND + ')');
+    L.push('  printf "%s" "$best"');
+    L.push('}');
+    L.push('if [ -d "$SOUNDS" ]; then');
+    useTracks.forEach((x, i) => {
+      const base = musicOutBase(i, x.t.query);
+      L.push('  M=$(music_find ' + x.toks.map(shq).join(' ') + ')');
+      L.push('  if [ -n "$M" ]; then USED="$USED$M|"; cp "$M" ' + shq(base) + '."${M##*.}" \\');
+      L.push('    && echo "  sound ' + pad(i + 1, 2) + ': $(basename "$M") -> ' + base + '.${M##*.}" \\');
+      L.push('    || echo "  sound ' + pad(i + 1, 2) + ' copy failed for $M";');
+      L.push('  else echo "  sound ' + pad(i + 1, 2) + ': no loose match for [' + x.toks.join(' ') + '] — add a track named with any of those words."; fi');
+    });
+    L.push('else');
+    L.push('  echo "  no $SOUNDS folder — create ~/Desktop/sounds and drop your tracks in, then re-run."');
+    L.push('fi');
+    L.push('');
+  }
+
+  L.push('echo "Done — drag the clips (and 00_MUSIC_… if present) into CapCut at the start; import captions.srt."');
   L.push('');
   L.push('if [ "$PREVIEW" = 1 ]; then');
   L.push('  echo "Rendering preview.mp4 (approximate; music not included)…"');
@@ -562,7 +622,7 @@ async function claudeJSON(userText, schema, maxTokens){
 /* ============================== State ================================ */
 const state = {
   dir: null, handles: new Map(), clips: [],
-  beats: [], music: '', assign: [], handle: 0,   // assign[i] = { ranked, chosen, inPoint }; 0 = exact beats
+  beats: [], music: '', musicTracks: [], assign: [], handle: 0,   // assign[i] = { ranked, chosen, inPoint }; 0 = exact beats
 };
 const $ = id => document.getElementById(id);
 function setMsg(t, err){ const m = $('msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
@@ -605,9 +665,13 @@ function parseSchema(){
   props.audioCue = { type: 'string' };
   props.needDescription = { type: 'string' };
   return {
-    type: 'object', additionalProperties: false, required: ['music', 'beats'],
+    type: 'object', additionalProperties: false, required: ['music', 'musicTracks', 'beats'],
     properties: {
       music: { type: 'string' },
+      musicTracks: { type: 'array', items: {
+        type: 'object', additionalProperties: false, required: ['query'],
+        properties: { query: { type: 'string' } },
+      } },
       beats: { type: 'array', items: {
         type: 'object', additionalProperties: false,
         required: ['index', 'tStart', 'tEnd', ...TAG_KEYS, 'onScreenText', 'audioCue', 'needDescription'],
@@ -623,7 +687,14 @@ const PARSE_PROMPT =
   'Map the beat\'s visual qualities to the allowed tag enums for setting, time, action, shot, mood — include only values that clearly apply, ' +
   'empty arrays are fine. onScreenText = the literal overlay text (empty string if none). audioCue = any per-beat sound note. ' +
   'needDescription = one short sentence describing what footage this beat needs, to help match a clip library. ' +
-  'music = the overall sound/song recommendation for the video. Return only the structured result.';
+  'music = the overall sound/song recommendation for the video (human-readable). ' +
+  'musicTracks = EVERY DISTINCT sound the video uses, each as its OWN separate entry — look at BOTH the overall ' +
+  'recommendation AND the per-beat audio cues. If the script names two different sounds (e.g. a "sub-bass drone" AND a ' +
+  '"modular arpeggiator", or two different songs, or a song plus a sound effect), return TWO entries. ONLY merge into one ' +
+  'entry when it is literally the same track described at different moments (e.g. "beat comes in", "the drop", "outro"). ' +
+  'When unsure whether two mentions are the same sound, keep them SEPARATE. For each entry, query = the searchable file ' +
+  'keywords (sound/song name and/or artist, lowercase, no quotes, e.g. "follow that tune gymskin", "modular arpeggiator"). ' +
+  'Return only the structured result.';
 
 async function parseScript(){
   const script = $('script').value.trim();
@@ -635,6 +706,7 @@ async function parseScript(){
   try{
     const out = await claudeJSON(PARSE_PROMPT + '\n\nSCRIPT:\n' + script, parseSchema(), 4096);
     state.music = out.music || '';
+    state.musicTracks = Array.isArray(out.musicTracks) ? out.musicTracks : [];
     state.beats = (out.beats || []).map((b, i) => ({ ...b, index: i }));
     matchAll();
     if($('rerankChk').checked && state.beats.length){
@@ -701,7 +773,9 @@ function renderReview(){
   $('review').classList.remove('hidden');
   renderSummary();
   renderGaps();
-  const wrap = $('beats'); wrap.innerHTML = '';
+  const wrap = $('beats');
+  wrap.querySelectorAll('.beat').forEach(releaseScrub);   // free any live-scrub videos before rebuild
+  wrap.innerHTML = '';
   if(posterObserver) posterObserver.disconnect();
   posterObserver = new IntersectionObserver(onPosterVisible, { rootMargin: '400px' });
 
@@ -761,9 +835,54 @@ function fillScrub(i){
     '<input type="range" class="scrub" min="0" max="' + maxIn.toFixed(2) + '" step="0.1" value="' + a.inPoint.toFixed(2) + '"' + dis + '>' +
     '<div class="scrublab"></div>';
   const range = wrap.querySelector('.scrub');
-  range.addEventListener('input', () => { state.assign[i].inPoint = parseFloat(range.value) || 0; updateScrubLab(i); });
-  range.addEventListener('change', () => { const t = card.querySelector('.thumb'); if(t) makePoster(a.chosen, t, state.assign[i].inPoint); });
+  range.addEventListener('input', () => {
+    const t = parseFloat(range.value) || 0;
+    state.assign[i].inPoint = t;
+    updateScrubLab(i);
+    scrubSeek(card, a.chosen, t);   // live frame preview as you drag
+  });
   updateScrubLab(i);
+}
+
+// Live scrub: one reusable <video> per card, seeked as the slider moves; the
+// browser coalesces rapid seeks and we redraw the thumbnail on each 'seeked'.
+async function scrubSeek(card, file, t){
+  if(!file || !card) return;
+  let v = card._scrubVid;
+  if(!v || card._scrubFile !== file){
+    if(card._scrubCreating){ card._scrubPending = t; return; }   // creation in flight → seek when ready
+    const handle = state.handles.get(file);
+    if(!handle) return;
+    card._scrubCreating = true;
+    try{
+      if(card._scrubUrl) URL.revokeObjectURL(card._scrubUrl);
+      const f = await handle.getFile();
+      card._scrubUrl = URL.createObjectURL(f);
+      v = document.createElement('video');
+      v.muted = true; v.preload = 'auto'; v.playsInline = true; v.src = card._scrubUrl;
+      v.addEventListener('seeked', () => drawScrubFrame(card, v));
+      card._scrubVid = v; card._scrubFile = file;
+      await once(v, 'loadedmetadata');
+    }catch(e){ card._scrubCreating = false; card._scrubVid = null; card._scrubFile = null; return; }
+    card._scrubCreating = false;
+    if(card._scrubPending != null){ t = card._scrubPending; card._scrubPending = null; }
+  }
+  v.currentTime = Math.min(Math.max(0, t), Math.max(0, (v.duration || 0) - 0.05));
+}
+function drawScrubFrame(card, v){
+  const thumb = card.querySelector('.thumb'); if(!thumb) return;
+  let canvas = thumb.querySelector('canvas');
+  if(!canvas){ canvas = document.createElement('canvas'); thumb.innerHTML = ''; thumb.appendChild(canvas); }
+  const w = 360, h = Math.round(w * (v.videoHeight / v.videoWidth || 16 / 9));
+  if(canvas.width !== w) canvas.width = w;
+  if(canvas.height !== h) canvas.height = h;
+  try{ canvas.getContext('2d').drawImage(v, 0, 0, w, h); }catch(e){}
+}
+function releaseScrub(card){
+  if(!card) return;
+  if(card._scrubUrl) URL.revokeObjectURL(card._scrubUrl);
+  card._scrubUrl = card._scrubVid = card._scrubFile = card._scrubPending = null;
+  card._scrubCreating = false;
 }
 function updateScrubLab(i){
   const lab = document.querySelector('.beat[data-i="' + i + '"] .scrublab');
@@ -780,6 +899,7 @@ function updateScrubLab(i){
 function onSwap(i, file, card, sel){
   state.assign[i].chosen = file || null;
   state.assign[i].inPoint = 0;                 // new clip → reset in-point
+  releaseScrub(card);                          // drop the previous clip's scrub video
   const gap = !file;
   card.classList.toggle('gap', gap);
   sel.classList.toggle('tofilm', gap);
@@ -921,6 +1041,7 @@ async function exportFull(proj, folderName){
   if(notes.length) shotlist += '\n> Large-file notes:\n' + notes.map(x => '> - ' + x).join('\n') + '\n';
   await writeText(proj, 'shotlist.md', shotlist);
   await writeText(proj, 'captions.srt', buildSrt(state.beats));
+  await writeText(proj, 'CAPTIONS.md', buildCaptionsReadme());
   await writeText(proj, 'MUSIC.txt', buildMusic(state.music, state.beats));
   await writeText(proj, 'TO-FILM.md', buildToFilm(gaps));
   setMsg('Exported ' + folderName + ' (full clips) — ' + copied + ' clips, ' + gaps.length + ' to film ✓', false);
@@ -956,12 +1077,23 @@ async function exportPrecut(proj, folderName){
   }
 
   const scoreGaps = state.beats.map(b => ({ beat: b })).filter((_, i) => !state.assign[i].chosen);
-  await writeText(proj, 'build.command', buildBuildCommand(cuts, missing));
+  const seenQ = new Set();
+  const tracks = (state.musicTracks || []).map(t => ({ query: (t.query || '').trim() }))
+    .filter(t => { const k = t.query.toLowerCase(); if(!t.query || !musicTokens(t.query).length || seenQ.has(k)) return false; seenQ.add(k); return true; });
+  await writeText(proj, 'build.command', buildBuildCommand(cuts, missing, tracks));
   await writeText(proj, 'cuts.json', JSON.stringify(
-    { version: 1, project: folderName, handle: state.handle, cuts: manifest, missing }, null, 2));
+    { version: 1, project: folderName, handle: state.handle, cuts: manifest, missing,
+      music: tracks.map((t, i) => ({ query: t.query, out: musicOutBase(i, t.query) })) }, null, 2));
   await writeText(proj, 'shotlist.md', buildPrecutShotlist(rows));
   await writeText(proj, 'captions.srt', buildSrt(state.beats));
-  await writeText(proj, 'MUSIC.txt', buildMusic(state.music, state.beats));
+  await writeText(proj, 'CAPTIONS.md', buildCaptionsReadme());
+  let musicTxt = buildMusic(state.music, state.beats);
+  if(tracks.length){
+    musicTxt += '\n## Sounds auto-found by build.command (from ~/Desktop/sounds)\n\n' +
+      'Each distinct sound is matched by keyword and copied in untrimmed — trim & place them in CapCut.\n\n';
+    tracks.forEach((t, i) => { musicTxt += '- `' + musicOutBase(i, t.query) + '.*` — search **' + t.query + '**\n'; });
+  }
+  await writeText(proj, 'MUSIC.txt', musicTxt);
   let toFilm = buildToFilm(scoreGaps);
   if(missing.length) toFilm += '\n## Missing sources (matched but file absent)\n\n' +
     missing.map(m => '- ' + m.srcOriginal + ' — ' + m.reason).join('\n') + '\n';
