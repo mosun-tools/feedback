@@ -11,7 +11,7 @@ import vm from 'node:vm';
 import assert from 'node:assert';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const html = readFileSync(join(here, '..', 'listen-9f3xk2.html'), 'utf8');
+const html = readFileSync(join(here, '..', 'listen-x4n7q2.html'), 'utf8');
 const pure = html.match(/PURE-LOGIC-START[\s\S]*?\*\/\n([\s\S]*?)\/\*[^]*?PURE-LOGIC-END/);
 assert.ok(pure, 'PURE-LOGIC region not found');
 
