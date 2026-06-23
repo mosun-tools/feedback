@@ -144,6 +144,13 @@ tr.song-row.active { background: var(--sel-bg); }
   h1 { font-size: 22px; }
 }
 
+.verdict-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 8px; border-radius: 100px; border: 1px solid; white-space: nowrap; margin-left: 6px; }
+.verdict-badge.ready { color: var(--sel-text); border-color: var(--sel-border); background: var(--sel-bg); }
+.verdict-badge.notready { color: #B23B3B; border-color: #E2A3A3; }
+@media (prefers-color-scheme: dark) { .verdict-badge.notready { color: #E58A8A; border-color: #6E3030; } }
+.score-grid td.dim, .score-grid th.dim { text-align: center; }
+.rate-cta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+
 @media print {
   body { background: #fff; color: #000; }
   .no-print { display: none !important; }
@@ -221,13 +228,15 @@ tr.song-row.active { background: var(--sel-bg); }
   <!-- Self-filter scorecard -->
   <div class="card no-print">
     <div class="card-head">
-      <span class="th"><span class="card-title">Self-Filter — your scorecard</span><span class="info" tabindex="0">i<span class="tip">Your own ratings, independent of the crowd. First set your <b>criteria</b> and their <b>weights</b> (higher weight = counts more toward the Self score) — rename, add, or remove any. Then in the grid, rate each track <b>1–5</b> per criterion; leave a cell on “—” to skip it. The <b>Self</b> column updates live and every change saves to the Sheet automatically.</span></span></span>
+      <span class="th"><span class="card-title">Self ratings — from the Self-Rating tool</span><span class="info" tabindex="0">i<span class="tip">Your own ratings live in the <b>Self-Rating tool</b> (4 pass/fail gates + five 1–5 scores). The <b>Self</b> number here and in the ranking comes straight from there — it is the single source of truth. <b>READY / NOT READY</b> reflects the gates (any fail → not ready). Rate or edit a song in the tool, then <b>Pull ratings</b> to refresh.</span></span></span>
       <span class="status" id="saveStatus"></span>
     </div>
-    <div class="crit-list" id="critList"></div>
-    <button class="btn" id="addCritBtn" style="margin-bottom:1.5rem;">+ Add criterion</button>
+    <div class="rate-cta">
+      <a class="btn primary" id="rateLink" href="rate-bjpuru.html" target="_blank" rel="noopener">Open Self-Rating tool ↗</a>
+      <button class="btn" id="refreshRatingsBtn">↻ Pull ratings</button>
+    </div>
     <div class="grid-scroll">
-      <table class="score-grid" id="scoreGrid"></table>
+      <table class="score-grid" id="ratingsView"></table>
     </div>
     <details class="adv" style="margin-top:1.5rem;">
       <summary>Advanced — listener score weights <span class="info" tabindex="0" onclick="event.preventDefault();">i<span class="tip">Controls how raw form answers become the 0–100 <b>Listener</b> score. Each weight is that metric's share of the blend (normalized, so relative size is what matters). <b>Penalty</b> is the max points subtracted when every listener flags weak parts. Defaults are sensible — only touch these if a metric matters more or less to you than the blend assumes.</span></span></summary>
@@ -273,8 +282,13 @@ var state = {
   listenerWeights: clone(DEFAULT_LISTENER_WEIGHTS),
   penalty: DEFAULT_PENALTY,
   blend: DEFAULT_BLEND,
-  scores: {}     // song -> { criterionName: 1..5 }
+  scores: {},    // legacy song -> { criterionName: 1..5 } (fallback only)
+  ratings: {}    // song -> { gates, scores, selfScore, status, ... } from the Self-Rating tool
 };
+var RATE_DIMS = [
+  { key: 'vision', label: 'Vision' }, { key: 'onlyMe', label: 'Only-me' },
+  { key: 'message', label: 'Message' }, { key: 'brandFit', label: 'Brand fit' }, { key: 'replay', label: 'Replay' }
+];
 var ranked = [];
 var selectedSong = null;
 var rankChart = null, radarChart = null;
@@ -329,6 +343,7 @@ function songList() {
   function add(s) { if (s && !set[s]) { set[s] = 1; order.push(s); } }
   SEED_SONGS.forEach(add);
   state.responses.forEach(function (r) { add(r.Song); });
+  Object.keys(state.ratings).forEach(add);
   Object.keys(state.scores).forEach(add);
   return order;
 }
@@ -371,6 +386,10 @@ function listenerScore(agg) {
 }
 
 function selfScore(song) {
+  // Single source of truth: the Self-Rating tool's stored selfScore.
+  var rt = state.ratings[song];
+  if (rt && typeof rt.selfScore === 'number') return rt.selfScore;
+  // Fallback: legacy per-criterion scores (only if no rating exists yet).
   var sc = state.scores[song] || {};
   var num = 0, den = 0;
   state.criteria.forEach(function (c) {
@@ -379,6 +398,7 @@ function selfScore(song) {
   });
   return den > 0 ? (num / den) * 100 : null;
 }
+function songStatus(song) { var rt = state.ratings[song]; return rt && rt.status ? rt.status : null; }
 
 function mosunScore(listener, self) {
   if (listener !== null && self !== null) return state.blend * listener + (1 - state.blend) * self;
@@ -447,9 +467,11 @@ function renderRankTable() {
   ranked.forEach(function (r, i) {
     var pct = max > 0 ? (r.mosun / max * 100) : 0;
     var flag = (r.n > 0 && r.n < LOW_SAMPLE) ? '<span class="flag">⚠ low n</span>' : (r.n === 0 ? '<span class="flag">self only</span>' : '');
+    var st = songStatus(r.song);
+    var badge = st ? '<span class="verdict-badge ' + (st === 'READY' ? 'ready' : 'notready') + '">' + escapeHtml(st) + '</span>' : '';
     html += '<tr class="song-row' + (r.song === selectedSong ? ' active' : '') + '" data-song="' + escapeAttr(r.song) + '">' +
       '<td><span class="rank-badge">' + (i + 1) + '</span></td>' +
-      '<td><span class="song-name">' + escapeHtml(r.song) + '</span>' + flag +
+      '<td><span class="song-name">' + escapeHtml(r.song) + '</span>' + badge + flag +
         '<span class="bar-track"><span class="bar-mini" style="width:' + pct + '%"></span></span></td>' +
       '<td class="num"><span class="score-pill">' + fmt(r.mosun) + '</span></td>' +
       '<td class="num">' + fmt(r.listener) + '</td>' +
@@ -528,78 +550,8 @@ function renderRadar(r) {
 }
 
 /* ===== Scorecard UI ===== */
-function renderCriteria() {
-  var list = $('critList');
-  list.innerHTML = '';
-  state.criteria.forEach(function (c, idx) {
-    var div = document.createElement('div');
-    div.className = 'crit-item';
-    div.innerHTML =
-      '<input class="cname" type="text" value="' + escapeAttr(c.name) + '">' +
-      '<span class="wlabel">weight</span>' +
-      '<input class="cweight" type="number" min="0" step="0.25" value="' + c.weight + '">' +
-      '<button class="icon-btn" title="Remove">×</button>';
-    var nameInput = div.querySelector('.cname');
-    var weightInput = div.querySelector('.cweight');
-    nameInput.addEventListener('change', function () {
-      var old = state.criteria[idx].name;
-      var nw = nameInput.value.trim() || old;
-      if (nw !== old) {
-        // migrate any per-song scores keyed by the old name
-        Object.keys(state.scores).forEach(function (song) {
-          if (state.scores[song] && state.scores[song][old] !== undefined) {
-            state.scores[song][nw] = state.scores[song][old];
-            delete state.scores[song][old];
-          }
-        });
-        state.criteria[idx].name = nw;
-        saveAllScores();
-      }
-      refreshDerived(); saveConfig();
-    });
-    weightInput.addEventListener('change', function () {
-      state.criteria[idx].weight = parseFloat(weightInput.value) || 0;
-      refreshDerived(); saveConfig();
-    });
-    div.querySelector('.icon-btn').addEventListener('click', function () {
-      state.criteria.splice(idx, 1);
-      renderCriteria(); renderScoreGrid(); refreshDerived(); saveConfig();
-    });
-    list.appendChild(div);
-  });
-}
-
-function renderScoreGrid() {
-  var t = $('scoreGrid');
-  var songs = songList();
-  var head = '<thead><tr><th>Song</th>';
-  state.criteria.forEach(function (c) { head += '<th>' + escapeHtml(c.name) + '</th>'; });
-  head += '<th class="num">Self</th></tr></thead>';
-  var body = '<tbody>';
-  songs.forEach(function (song) {
-    body += '<tr><td class="song-cell">' + escapeHtml(song) + '</td>';
-    state.criteria.forEach(function (c) {
-      var v = (state.scores[song] && state.scores[song][c.name]) || '';
-      var opts = '<option value="">—</option>';
-      for (var i = 1; i <= 5; i++) opts += '<option value="' + i + '"' + (String(v) === String(i) ? ' selected' : '') + '>' + i + '</option>';
-      body += '<td><select class="' + (v ? '' : 'unset') + '" data-song="' + escapeAttr(song) + '" data-crit="' + escapeAttr(c.name) + '">' + opts + '</select></td>';
-    });
-    body += '<td class="num">' + fmt(selfScore(song)) + '</td>';
-  });
-  body += '</tbody>';
-  t.innerHTML = head + body;
-  Array.prototype.forEach.call(t.querySelectorAll('select'), function (sel) {
-    sel.addEventListener('change', function () {
-      var song = sel.getAttribute('data-song'), crit = sel.getAttribute('data-crit');
-      if (!state.scores[song]) state.scores[song] = {};
-      if (sel.value === '') delete state.scores[song][crit];
-      else state.scores[song][crit] = parseInt(sel.value, 10);
-      sel.className = sel.value ? '' : 'unset';
-      saveScores(song);
-      refreshDerived();
-    });
-  });
-}
+// The editable scorecard (criteria + per-song grid) moved to the Self-Rating tool
+// (rate-bjpuru.html). The dashboard now reads its ratings read-only — see renderRatings().
 
 function renderListenerWeights() {
   var body = $('lwBody');
@@ -621,18 +573,34 @@ function renderListenerWeights() {
   });
 }
 
+// Read-only view of the Self-Rating tool's ratings (single source of truth).
+function renderRatings() {
+  var t = $('ratingsView');
+  if (!t) return;
+  var songs = Object.keys(state.ratings);
+  if (!songs.length) {
+    t.innerHTML = '<tbody><tr><td class="song-cell" style="color:var(--muted);font-weight:400;">No self-ratings yet — open the Self-Rating tool and run one.</td></tr></tbody>';
+    return;
+  }
+  songs.sort(function (a, b) { return (state.ratings[b].selfScore || 0) - (state.ratings[a].selfScore || 0); });
+  var head = '<thead><tr><th>Song</th>';
+  RATE_DIMS.forEach(function (d) { head += '<th class="dim">' + d.label + '</th>'; });
+  head += '<th class="num">Self</th><th>Verdict</th></tr></thead>';
+  var body = '<tbody>';
+  songs.forEach(function (song) {
+    var rt = state.ratings[song], sc = rt.scores || {}, ready = rt.status === 'READY';
+    body += '<tr><td class="song-cell">' + escapeHtml(song) + '</td>';
+    RATE_DIMS.forEach(function (d) { body += '<td class="dim">' + (sc[d.key] || '–') + '</td>'; });
+    body += '<td class="num">' + fmt(rt.selfScore) + '</td>' +
+      '<td><span class="verdict-badge ' + (ready ? 'ready' : 'notready') + '">' + escapeHtml(rt.status) + '</span></td></tr>';
+  });
+  t.innerHTML = head + body + '</tbody>';
+}
+
 function refreshDerived() {
   computeAll();
   renderRankChart();
   renderRankTable();
-  // keep the self-score column current
-  if ($('scoreGrid').querySelector('tbody')) {
-    var songs = songList();
-    var rows = $('scoreGrid').querySelectorAll('tbody tr');
-    songs.forEach(function (song, i) {
-      if (rows[i]) { var cells = rows[i].querySelectorAll('td'); cells[cells.length - 1].textContent = fmt(selfScore(song)); }
-    });
-  }
   if (selectedSong) selectSong(selectedSong);
 }
 
@@ -683,11 +651,14 @@ function applyServerState(sf) {
     var lc = localStorage.getItem('mosun_ar_config');
     if (lc) { try { var c = JSON.parse(lc); if (c.criteria) state.criteria = c.criteria; if (c.listenerWeights) state.listenerWeights = c.listenerWeights; if (typeof c.penalty === 'number') state.penalty = c.penalty; if (typeof c.blend === 'number') state.blend = c.blend; } catch (e) {} }
   }
-  // scores
+  // ratings (Self-Rating tool — bare song keys with a numeric selfScore) + legacy scores
+  state.ratings = {};
   state.scores = {};
   var found = false;
   Object.keys(sf).forEach(function (k) {
-    if (k.indexOf('scores::') === 0 && sf[k] && typeof sf[k] === 'object') { state.scores[k.slice(8)] = sf[k]; found = true; }
+    var v = sf[k];
+    if (k.indexOf('scores::') === 0 && v && typeof v === 'object') { state.scores[k.slice(8)] = v; found = true; }
+    else if (k !== 'config' && v && typeof v === 'object' && typeof v.selfScore !== 'undefined' && v.status) { state.ratings[k] = v; }
   });
   if (!found) {
     var ls = localStorage.getItem('mosun_ar_scores');
@@ -712,14 +683,14 @@ function loadData() {
       state.responses.forEach(function (r) { if (r.Song) nSongs[r.Song] = 1; });
       $('status').textContent = state.responses.length + ' responses · ' + Object.keys(nSongs).length + ' tracks with feedback';
       $('status').className = 'status ok';
-      renderCriteria(); renderListenerWeights(); renderScoreGrid(); refreshDerived();
+      renderListenerWeights(); renderRatings(); refreshDerived();
     })
     .catch(function (err) {
       $('status').textContent = 'Could not load: ' + err.message + ' (check token / redeploy)';
       $('status').className = 'status err';
       // still render UI from local/defaults so scoring works offline
       applyServerState(null);
-      renderCriteria(); renderListenerWeights(); renderScoreGrid(); refreshDerived();
+      renderListenerWeights(); renderRatings(); refreshDerived();
     })
     .then(function () { $('refreshBtn').disabled = false; });
 }
@@ -776,10 +747,7 @@ $('refreshBtn').addEventListener('click', loadData);
 $('csvBtn').addEventListener('click', exportCSV);
 $('jsonBtn').addEventListener('click', exportJSON);
 $('printBtn').addEventListener('click', function () { window.print(); });
-$('addCritBtn').addEventListener('click', function () {
-  state.criteria.push({ name: 'New criterion', weight: 1 });
-  renderCriteria(); renderScoreGrid(); refreshDerived(); saveConfig();
-});
+$('refreshRatingsBtn').addEventListener('click', loadData);
 $('closeDetail').addEventListener('click', function () { selectedSong = null; $('detailCard').style.display = 'none'; renderRankTable(); });
 
 /* ===== Passphrase lock (WebCrypto AES-GCM + PBKDF2) ===== */
