@@ -31,6 +31,15 @@ Match the *feel* of that site (high-end, cinematic, smooth, type-forward) but en
 - **Magnetic CTAs:** PRESS PLAY / advance buttons pull toward the cursor and bloom saffron on hover.
 - **Tech:** Lenis (smooth scroll) + GSAP ScrollTrigger (reveals) from CDN; self-contained and performant — **no heavy WebGL** (fans' phones + my machine stay light). Honor `prefers-reduced-motion`; on mobile swap smooth-scroll/cursor for tasteful native scroll + the tactile taps below.
 
+## Background — living saffron ink-bloom (WebGL, recolored from the ink-explosion reference)
+A full-bleed, fixed background behind everything: a slow, living **ink bloom** — a luminous **saffron-gold core** at center bleeding into **oxblood / deep-violet** depths on **ink black**, with soft concentric waves, filament tendrils, and gentle organic drift. Inspired by macro ink-in-water, but recolored fully to MOSUN (drop the rainbow).
+
+- **Tech:** one full-screen **WebGL fragment shader** (raw WebGL, no Three.js — it's a single quad). Domain-warped fractal/curl noise for the fluid motion; a **radial palette ramp** center→edge: near-white hot core → saffron `#F6A25C` → `#FBC89A`/`#D8823A` → oxblood `#7E0101` / deep violet → ink `#000`. Additive bloom + a fine grain overlay for the "ink particulate" texture. Animate **very slowly** (breathing) — it's a backdrop, not a light show.
+- **Legibility first:** it must never fight the content — keep a subtle dark vignette / lowered opacity behind the DISCO player and the questions so cream text and the player stay crisp.
+- **Performance (it's on fans' phones — non-negotiable):** render to a **downscaled buffer** (cap devicePixelRatio), cap ~30fps, **pause when the tab/section is hidden**, throttle/disable on low-power, feature-detect WebGL.
+- **Auto fallback:** no WebGL / `prefers-reduced-motion` / low-power → a **CSS-only** version — layered radial gradients (saffron core → oxblood → ink) + film grain + a very slow drift. Bulletproof on any phone.
+- Self-contained; no heavy libraries. This ink-bloom is the **ground layer**; the sun-as-progress and drifting particles sit on top of it.
+
 ## Fan experience — a GAME, scroll-driven (unmistakably MOSUN)
 A smooth, scroll-driven cinematic journey: each feedback step is its own **full-bleed section** you scroll into (like the reference's numbered sections), carrying real game juice. Think "a short journey through the night," not a form.
 
