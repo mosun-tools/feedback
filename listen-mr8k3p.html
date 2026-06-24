@@ -302,6 +302,8 @@ function missingRequired(run){
 function buildParams(run, songTitle){
   return {
     name: (run.name || '').trim() || 'Anonymous',
+    email: (run.email || '').trim(),
+    city: (run.city || '').trim(),
     song: songTitle,
     reaction: run.reaction || '',
     hook: (run.hook >= 1 && run.hook <= 5) ? String(run.hook) : '',
@@ -335,7 +337,7 @@ var BEATS = {
   weak:     { k:'Honest', t:[{w:'Any'},{w:'dead'},{w:'air?',em:1}], p:'Did any part feel weak or boring?' },
   remember: { k:'Stuck', t:[{w:'Hum'},{w:'it?',em:1}], p:'Can you hum or remember any part right now?' },
   comments: { k:'Open mic · optional', t:[{w:'Say'},{w:'more?',em:1}], p:'Anything else on your mind — completely optional.' },
-  name:     { k:'Last thing · optional', t:[{w:'Who’s'},{w:'this?',em:1}], p:'A name so I can thank you — or stay a ghost.' }
+  name:     { k:'Before you go', t:[{w:'Stay'},{w:'close?',em:1}], p:'Drop your email so you hear the finished version first — name and city if you’re up for it.' }
 };
 
 /* ---------- sound + haptics ---------- */
@@ -385,7 +387,11 @@ function beatBody(step){
   if(step === 'weak') return '<div class="opts"><button class="opt mag" data-weak="All good">All good — it held me</button><button class="opt mag" data-weak="Some parts">Some parts dipped</button></div>' +
     '<div class="wherewrap hidden" style="margin-top:18px"><textarea class="field wherein" rows="2" placeholder="which part? verse, chorus, bridge, intro…"></textarea><div class="actions" style="margin-top:12px"><button class="btn small primary mag wherenext">Next →</button></div></div>';
   if(step === 'comments') return '<textarea class="field commentsin" rows="3" placeholder="whatever comes to mind…"></textarea><div class="actions" style="margin-top:18px"><button class="btn ghost small skipc">Skip</button><button class="btn primary small mag nextc">Next →</button></div>';
-  if(step === 'name') return '<input class="line namein" placeholder="your name (optional)" autocomplete="off"><div class="actions" style="margin-top:20px"><button class="btn ghost small ghostc">Stay anonymous</button><button class="btn primary small mag sendc">Send it</button></div>';
+  if(step === 'name') return '<input class="line namein" placeholder="first name" autocomplete="given-name">' +
+    '<input class="line emailin" type="email" placeholder="your email" autocomplete="email" inputmode="email" style="margin-top:12px">' +
+    '<input class="line cityin" placeholder="city" autocomplete="address-level2" style="margin-top:12px">' +
+    '<div class="berr emailerr" style="margin-top:8px"></div>' +
+    '<div class="actions" style="margin-top:14px"><button class="btn primary small mag sendc">Send it</button></div>';
   return '';
 }
 
@@ -477,8 +483,10 @@ function wireBeats(){
   // comments / name
   document.querySelectorAll('.skipc').forEach(function(el){ el.addEventListener('click', function(e){ run.comments=''; juice(e); scrollToStep('name'); }); });
   document.querySelectorAll('.nextc').forEach(function(el){ el.addEventListener('click', function(e){ run.comments = el.closest('.sec').querySelector('.commentsin').value; juice(e); scrollToStep('name'); }); });
-  document.querySelectorAll('.ghostc').forEach(function(el){ el.addEventListener('click', function(e){ run.name=''; juice(e, 659); finish(); }); });
-  document.querySelectorAll('.sendc').forEach(function(el){ el.addEventListener('click', function(e){ run.name = el.closest('.sec').querySelector('.namein').value; juice(e, 659); finish(); }); });
+  document.querySelectorAll('.namein').forEach(function(el){ el.addEventListener('input', function(){ run.name = el.value; }); });
+  document.querySelectorAll('.emailin').forEach(function(el){ el.addEventListener('input', function(){ run.email = el.value; var ee = el.closest('.sec').querySelector('.emailerr'); if(ee) ee.textContent = ''; }); });
+  document.querySelectorAll('.cityin').forEach(function(el){ el.addEventListener('input', function(){ run.city = el.value; }); });
+  document.querySelectorAll('.sendc').forEach(function(el){ el.addEventListener('click', function(e){ juice(e, 659); finish(); }); });
 
   if(finePointer && !prefersReduced) initMagnetic();
 }
@@ -535,6 +543,12 @@ function showCues(){
 function finish(){
   var miss = missingRequired(run);
   if(miss.length){ scrollToStep(miss[0]); return; }
+  var email = (run.email || '').trim();
+  if(!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+    scrollToStep('name');
+    var ee = document.querySelector('.emailerr'); if(ee) ee.textContent = 'Add a valid email to send — it’s how you hear it first.';
+    return;
+  }
   scrollToStep('reveal');
   tick(784); buzz([12,40,18]);
   submit();

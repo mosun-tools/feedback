@@ -37,10 +37,13 @@ function handleSubmit(p) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(RESPONSES_SHEET) || ss.getSheets()[0];
 
-  // Write a header row once.
+  // Write the header row once; if the sheet predates the Email/City columns, label them in place.
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(['Timestamp', 'Name', 'Song', 'Reaction', 'Hook', 'Playlist',
-                     'Share', 'Weak parts', 'Weak where', 'Remembered', 'Comments']);
+                     'Share', 'Weak parts', 'Weak where', 'Remembered', 'Comments', 'Email', 'City']);
+  } else {
+    if (!sheet.getRange(1, 12).getValue()) sheet.getRange(1, 12).setValue('Email');
+    if (!sheet.getRange(1, 13).getValue()) sheet.getRange(1, 13).setValue('City');
   }
 
   // Hook arrives as "4/5"; Sheets would auto-coerce that to a DATE. Store the
@@ -58,7 +61,9 @@ function handleSubmit(p) {
     p.weak || '',
     p.weakWhere || '',
     p.remember || '',
-    p.comments || ''
+    p.comments || '',
+    p.email || '',
+    p.city || ''
   ]);
 
   return ContentService.createTextOutput('OK');

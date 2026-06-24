@@ -17,8 +17,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const FILES = ['listen-x4n7q2.html', 'listen-mr8k3p.html'];   // beach build · ember build
 
 // The exact field set index.html appends to SCRIPT_URL.
-const INDEX_FIELDS = ['name','song','reaction','hook','playlist','share','weak','weakWhere','remember','comments'];
-const full = { reaction:'Fire', hook:4, playlist:'Yes', share:'Maybe', weak:'Some parts', weakWhere:'  2nd verse  ', remember:'Yes', comments:'  loved it  ', name:'  Ada  ' };
+const INDEX_FIELDS = ['name','email','city','song','reaction','hook','playlist','share','weak','weakWhere','remember','comments'];
+const full = { reaction:'Fire', hook:4, playlist:'Yes', share:'Maybe', weak:'Some parts', weakWhere:'  2nd verse  ', remember:'Yes', comments:'  loved it  ', name:'  Ada  ', email:'  ada@email.com  ', city:'  Lagos  ' };
 
 let n = 0, pass = 0;
 function check(name, fn){ n++; try{ fn(); pass++; console.log('  ✓ ' + name); }
@@ -61,6 +61,8 @@ for (const file of FILES) {
     assert.equal(p.weakWhere, '2nd verse');           // trimmed
     assert.equal(p.comments, 'loved it');
     assert.equal(p.name, 'Ada');
+    assert.equal(p.email, 'ada@email.com');   // trimmed (the capture)
+    assert.equal(p.city, 'Lagos');            // trimmed (tour map)
   });
   check('[' + tag + '] blank name → Anonymous (matches the public form)', () => {
     assert.equal(buildParams({ ...full, name: '' }, 'X').name, 'Anonymous');

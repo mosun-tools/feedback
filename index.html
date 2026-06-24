@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MOSUN — Song Feedback</title>
+<title>MOSUN — First Listeners</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -21,7 +21,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Instrument Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
 .container { max-width: 560px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
-h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }
+h1 { font-size: 24px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
 .sub { font-family: 'Newsreader', serif; font-style: italic; font-size: 14px; color: var(--muted); margin-bottom: 2.5rem; }
 .section { margin-bottom: 2rem; }
 .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px; }
@@ -78,14 +78,22 @@ textarea::placeholder, .text-input::placeholder { color: var(--hint); }
 </head>
 <body>
 <div class="container" id="formView">
-  <h1>Song feedback</h1>
-  <p class="sub">Takes 60 seconds. Be honest — it helps more than being nice.</p>
+  <h1>First listeners</h1>
+  <p class="sub">You’re hearing this before anyone on earth. Be honest — it shapes the record more than being nice.</p>
 
   <div class="section">
     <div class="section-label">About you</div>
     <div class="q">
-      <div class="q-text">Your name (optional)</div>
-      <input type="text" class="text-input" id="f_name" placeholder="Anonymous is fine" />
+      <div class="q-text">First name</div>
+      <input type="text" class="text-input" id="f_name" placeholder="What should I call you?" autocomplete="given-name" />
+    </div>
+    <div class="q">
+      <div class="q-text">Email <span style="font-weight:400;color:var(--muted);font-size:12px;">— so you’re first to hear the finished version</span></div>
+      <input type="email" class="text-input" id="f_email" placeholder="you@email.com" autocomplete="email" inputmode="email" />
+    </div>
+    <div class="q">
+      <div class="q-text">City</div>
+      <input type="text" class="text-input" id="f_city" placeholder="Where are you listening from?" autocomplete="address-level2" />
     </div>
   </div>
 
@@ -171,8 +179,8 @@ textarea::placeholder, .text-input::placeholder { color: var(--hint); }
       </div>
     </div>
     <div class="q">
-      <div class="q-text">Anything else you want to say?</div>
-      <textarea id="f_freeform" placeholder="Completely optional — say whatever comes to mind."></textarea>
+      <div class="q-text">Leave me a note</div>
+      <textarea id="f_freeform" placeholder="Say anything — this goes straight to me, and I read every one."></textarea>
     </div>
   </div>
 
@@ -209,6 +217,12 @@ document.getElementById('submitBtn').addEventListener('click', function() {
     errEl.style.display = 'block';
     return;
   }
+  var email = document.getElementById('f_email').value.trim();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    errEl.textContent = 'Please add a valid email — it’s how you’ll hear the finished version first.';
+    errEl.style.display = 'block';
+    return;
+  }
   errEl.style.display = 'none';
 
   var btn = document.getElementById('submitBtn');
@@ -217,6 +231,8 @@ document.getElementById('submitBtn').addEventListener('click', function() {
 
   var params = new URLSearchParams();
   params.append('name', document.getElementById('f_name').value || 'Anonymous');
+  params.append('email', email);
+  params.append('city', document.getElementById('f_city').value.trim());
   params.append('song', data.song);
   params.append('reaction', data.reaction);
   params.append('hook', data.hook + '/5');
