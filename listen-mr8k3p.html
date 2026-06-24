@@ -920,6 +920,18 @@ function initInkBloom(canvas, options) {
   };
 }
 
+/* ---------- first-listen window: fan links go dead after this (viewer's local time) ---------- */
+var CLOSE_AT = new Date(2026, 5, 29, 0, 0, 0);   // midnight ending Sun 28 Jun 2026. ?closed=1 to preview.
+function showClosed(){
+  if($('pre')) $('pre').classList.add('gone');
+  $('app').innerHTML = '<section class="sec"><div class="sec-in">' +
+    '<div class="kicker">First listen' + (cfg && cfg.t ? ' · ' + esc(cfg.t) : '') + '</div>' +
+    '<h2 class="htitle">This window has closed.</h2>' +
+    '<div class="qprompt" style="margin-top:18px">Thank you for being early. The finished version is on its way — the first listeners hear it first.</div>' +
+    '</div></section>';
+  document.documentElement.classList.remove('locked'); document.body.classList.remove('locked');
+}
+
 /* ---------- boot ---------- */
 updateMute();
 initCursor();
@@ -933,7 +945,10 @@ bloom = initInkBloom($('bloom'), {
 });
 document.documentElement.classList.toggle('ink-live', bloom.mode === 'webgl' || bloom.mode === 'still');
 cfg = readConfig();
-if(cfg){
+var closed = (new Date() >= CLOSE_AT) || _ip.get('closed') === '1';
+if(cfg && closed){
+  showClosed();                       // link still works, but the session is sealed
+} else if(cfg){
   buildFan();
   initLenis();
   initReveals();
