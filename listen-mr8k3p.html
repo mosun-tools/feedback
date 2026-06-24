@@ -645,7 +645,7 @@ function initTrail(){
       for(var e = 0; e < 5; e++){
         var ang = Math.random() * Math.PI * 2, sp = 0.3 + Math.random() * 1.2;
         sparks.push({ x: pointer.x + (Math.random()-0.5)*14, y: pointer.y + (Math.random()-0.5)*14,
-          vx: Math.cos(ang)*sp + cvx*0.25, vy: Math.sin(ang)*sp + cvy*0.25, life: 1, r: 0.28 + Math.random()*0.8 });
+          vx: Math.cos(ang)*sp + cvx*0.25, vy: Math.sin(ang)*sp + cvy*0.25, life: 1, r: 0.7 + Math.random()*1.7 });
       }
       if(sparks.length > 220) sparks.splice(0, sparks.length - 220);
     }
@@ -654,7 +654,7 @@ function initTrail(){
       s.vy -= 0.012; s.vx *= 0.95; s.vy *= 0.96;       // embers rise + drag
       s.x += s.vx; s.y += s.vy; s.life -= 0.018;
       if(s.life <= 0){ sparks.splice(si2, 1); continue; }
-      var dd = s.r * 5; x.globalAlpha = s.life * s.life * 0.18;   // fade out, kept well below the sun
+      var dd = s.r * 6; x.globalAlpha = s.life * s.life * 0.18;   // fade out, kept well below the sun
       x.drawImage(spark, s.x - dd/2, s.y - dd/2, dd, dd);
     }
     x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
