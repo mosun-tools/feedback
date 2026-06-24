@@ -945,7 +945,7 @@ bloom = initInkBloom($('bloom'), {
 });
 document.documentElement.classList.toggle('ink-live', bloom.mode === 'webgl' || bloom.mode === 'still');
 cfg = readConfig();
-var closed = (new Date() >= CLOSE_AT) || _ip.get('closed') === '1';
+var closed = (new Date() >= CLOSE_AT) || location.href.indexOf('closed=1') !== -1;   // preview hook works anywhere in the URL
 if(cfg && closed){
   showClosed();                       // link still works, but the session is sealed
 } else if(cfg){
