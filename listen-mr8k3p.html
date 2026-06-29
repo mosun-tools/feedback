@@ -921,7 +921,7 @@ function initInkBloom(canvas, options) {
 }
 
 /* ---------- first-listen window: fan links go dead after this (viewer's local time) ---------- */
-var CLOSE_AT = new Date(2026, 5, 29, 0, 0, 0);   // midnight ending Sun 28 Jun 2026. ?closed=1 to preview.
+var CLOSE_AT = new Date(2020, 0, 1, 0, 0, 0);   // CLOSED NOW (sealed early 25 Jun 2026) — past date → always closed, every timezone.
 function showClosed(){
   if($('pre')) $('pre').classList.add('gone');
   $('app').innerHTML = '<section class="sec"><div class="sec-in">' +
