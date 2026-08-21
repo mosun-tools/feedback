@@ -7,13 +7,17 @@
  *   node tools/grab-growth.mjs --save --week=2026-08-23
  *
  * What it can reach without a login (verified 2026-08-21):
- *   TikTok   followers (+likes, videos)   — public profile, needs a real browser render (headless Chrome)
- *   Spotify  monthly listeners            — public artist page, headless Chrome
- *   YouTube  subs (rounded, e.g. 8.38K) + exact total views — public channel page, plain fetch
- *   NetEase  fans (网易云 fansCnt)          — public JSON endpoint, plain fetch
- * Everything login-walled (views 7d, streams 28d, audience trio, 抖音/小红书/微博, IG) stays on
- * the Cowork-in-Chrome grab or the entry form. Merge semantics on the server mean this
- * script never wipes those columns — it only writes the fields it actually fetched.
+ *   TikTok    followers (+likes, videos)   — public profile, needs a real browser render (headless Chrome)
+ *   Spotify   monthly listeners            — public artist page, headless Chrome
+ *   YouTube   subs (rounded, e.g. 8.38K) + exact total views — public channel page, plain fetch
+ *   NetEase   fans (网易云 fansCnt)          — public JSON endpoint, plain fetch
+ *   抖音       粉丝 (+获赞)                  — iesdouyin share page, headless Chrome with a mobile UA
+ *   微博       粉丝                          — m.weibo.cn profile, headless Chrome with a mobile UA
+ *   Instagram followers (rounded, e.g. 22.4K) — public profile meta, headless Chrome
+ * Login-walled (stays on the Cowork-in-Chrome grab or the entry form): TikTok views 7d / best
+ * post, Spotify streams + super/active/new listeners, NetEase plays, and all of 小红书 (its
+ * site returns 500 to headless browsers). Merge semantics on the server mean this script never
+ * wipes those columns — it only writes the fields it actually fetched.
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -29,8 +33,13 @@ const CFG = {
   spotifyArtist: '76gcbuCZgpmlqrao6FkiKw',
   youtubeChannel: 'UCuv6XNA4PI4KmT6cauM3EbQ',
   neteaseArtist: 12645566,
+  douyinSecUid: 'MS4wLjABAAAA6p3DqjDIv9esQu8ARh6PXb4luWaybWypv-9yk-r3JGs',   // from v.douyin.com/hbrSfaWZ5qE
+  weiboUid: '2100022061',
+  instagram: 'morrisonma',
   chrome: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+  ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+  mobileUa: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  maxRenders: 2          // headless Chromes at once — five in parallel starved an 8 GB Mac
 };
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const [k, v] = a.replace(/^--/, '').split('='); return [k, v ?? true]; }));
@@ -42,15 +51,34 @@ function weekEnding(d = new Date()) {            // Sunday on or after today, lo
 const num = s => s == null ? null : Number(String(s).replace(/,/g, ''));
 const strip = html => html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ');
 
-async function renderDom(url) {                   // headless Chrome, JS executed, DOM dumped
+// Tiny semaphore so at most CFG.maxRenders Chromes run at once.
+let active = 0; const queue = [];
+const acquire = () => new Promise(res => { const go = () => { active++; res(); }; active < CFG.maxRenders ? go() : queue.push(go); });
+const release = () => { active--; (queue.shift() || (() => {}))(); };
+
+async function renderDom(url, { ua = CFG.ua } = {}) {   // headless Chrome, JS executed, DOM dumped
+  await acquire();
   const profile = mkdtempSync(join(tmpdir(), 'mosun-grab-'));   // isolated profile: parallel renders don't collide
+  const tag = `--mosun-tag=${profile.split('-').pop()}`;           // lets us kill the whole tree if it hangs
   try {
-    const { stdout } = await run(CFG.chrome, ['--headless', '--disable-gpu', '--dump-dom', '--virtual-time-budget=15000',
-      '--window-size=1280,900', '--lang=en-US', `--user-agent=${CFG.ua}`, `--user-data-dir=${profile}`, url],
-      { maxBuffer: 64 * 1024 * 1024, timeout: 90000 });
-    return stdout;
-  } finally { rmSync(profile, { recursive: true, force: true }); }
+    const args = ['--headless', '--disable-gpu', '--dump-dom', '--virtual-time-budget=15000', '--no-first-run',
+      '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--window-size=1280,900',
+      '--lang=en-US', `--user-agent=${ua}`, `--user-data-dir=${profile}`, tag, url];
+    try {
+      return (await run(CFG.chrome, args, { maxBuffer: 64 * 1024 * 1024, timeout: 60000, killSignal: 'SIGKILL' })).stdout;
+    } catch (e) {
+      // Chrome writes the DOM once the virtual-time budget is spent, then often lingers instead of
+      // exiting; the timeout kill still hands us everything it wrote. Use it.
+      if (e.stdout && e.stdout.length > 10000) return e.stdout;
+      throw e;
+    }
+  } finally {
+    await run('pkill', ['-9', '-f', tag]).catch(() => {});           // children can outlive the browser process
+    rmSync(profile, { recursive: true, force: true });
+    release();
+  }
 }
+const cn = s => s && s.trim();   // "1.6万" etc. — the server's parseMetric understands 万/亿
 async function retry(fn, times = 3, waitMs = 4000) {   // bot walls are intermittent — try again before giving up
   let err;
   for (let i = 0; i < times; i++) {
@@ -89,7 +117,27 @@ const sources = {
     const j = JSON.parse(await fetchText(`https://music.163.com/api/artist/follow/count/get?id=${CFG.neteaseArtist}`, { Referer: 'https://music.163.com/' }));
     if (j.code !== 200 || j.data?.fansCnt == null) throw new Error(`unexpected reply ${JSON.stringify(j).slice(0, 120)}`);
     return { neFans: String(j.data.fansCnt) };
-  }
+  },
+  douyin: () => retry(async () => {
+    const html = await renderDom(`https://www.iesdouyin.com/share/user/${CFG.douyinSecUid}`, { ua: CFG.mobileUa });
+    const txt = strip(html).replace(/\s+/g, ' ');
+    const fans = (html.match(/"follower_count":\s*(\d+)/) || txt.match(/粉丝\s*([\d.]+万?)/) || [])[1];
+    if (!fans) throw new Error('粉丝 not rendered (verify wall?)');
+    return { dyFollowers: cn(fans), _extra: { 获赞: (txt.match(/获赞\s*([\d.]+万?)/) || [])[1] } };
+  }),
+  weibo: () => retry(async () => {
+    const txt = strip(await renderDom(`https://m.weibo.cn/u/${CFG.weiboUid}`, { ua: CFG.mobileUa })).replace(/\s+/g, ' ');
+    const m = txt.match(/粉丝\s*([\d.]+万?)/);          // profile header reads "关注 248 粉丝 2976"
+    if (!m) throw new Error('粉丝 not rendered (login wall?)');
+    return { wbFollowers: cn(m[1]) };
+  }),
+  instagram: () => retry(async () => {
+    const html = await renderDom(`https://www.instagram.com/${CFG.instagram}/`);
+    const txt = strip(html).replace(/\s+/g, ' ');
+    const m = txt.match(/([\d.,]+[KM]?)\s*followers/i) || html.match(/content="([\d.,]+[KM]?) Followers/);
+    if (!m) throw new Error('followers not rendered (login wall?)');
+    return { igFollowers: m[1] };
+  })
 };
 
 const week = args.week && args.week !== true ? args.week : weekEnding();
