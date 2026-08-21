@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>MOSUN — Growth</title>
+<style>
+@font-face{ font-family:'Prospec'; src:url('fonts/Prospec.otf') format('opentype'); font-weight:400; font-display:swap; }
+:root{
+  --ink:#000000; --cream:#E8E6D9;
+  --saffron:#F6A25C; --saffron-soft:#FBC89A; --saffron-hover:#D8823A;
+  --oxblood:#7E0101; --down:#C0705E;               /* oxblood lifted enough to read on ink */
+  --n1:#DEDCD0; --n2:#B9B7AC; --n3:#8A8880; --n4:#5C5B55; --n5:#2E2D2B;
+  --card:#0C0C0B;
+  --hairline:rgba(232,230,217,0.14); --border-strong:rgba(232,230,217,0.28);
+  --r-pill:999px; --r-card:14px; --r-input:6px;
+  --ease:cubic-bezier(0.16,1,0.3,1);
+  --font-display:'Prospec','Futura PT','Century Gothic',sans-serif;
+  --font-body:'Futura','Futura PT','Trebuchet MS','Century Gothic','Avenir',system-ui,sans-serif;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html { background:var(--ink); }
+body { font-family:var(--font-body); background:var(--ink); color:var(--cream); line-height:1.5; }
+.container { max-width:1080px; margin:0 auto; padding:2.2rem 1.1rem 5rem; }
+
+h1 { font-family:var(--font-display); font-weight:400; font-size:clamp(21px,4.5vw,28px);
+     letter-spacing:0.22em; text-transform:uppercase; }
+h1 .dot { color:var(--saffron); }
+.sub { font-size:12px; color:var(--n3); letter-spacing:0.2em; text-transform:uppercase; margin:4px 0 1.6rem; }
+
+.tabs { display:flex; gap:8px; margin-bottom:1.5rem; }
+.tab { font-family:var(--font-body); font-size:12px; letter-spacing:0.18em; text-transform:uppercase;
+       padding:9px 20px; border-radius:var(--r-pill); border:1px solid var(--hairline);
+       background:transparent; color:var(--n2); cursor:pointer; transition:all .4s var(--ease); }
+.tab:hover { border-color:var(--border-strong); color:var(--cream); }
+.tab.active { border-color:var(--saffron); color:var(--saffron); }
+.tabs .spacer { flex:1; }
+.status { font-size:12px; color:var(--n3); align-self:center; }
+.status.err { color:var(--down); }
+
+.card { background:var(--card); border:1px solid var(--hairline); border-radius:var(--r-card);
+        padding:1.25rem 1.25rem; margin-bottom:1.1rem; }
+.section-head { font-family:var(--font-display); font-weight:400; font-size:14px; letter-spacing:0.3em;
+                text-transform:uppercase; color:var(--n1); margin:2rem 0 0.9rem; display:flex; align-items:center; gap:10px; }
+.section-head::after { content:''; flex:1; height:1px; background:var(--hairline); }
+.section-head .zh { color:var(--n3); letter-spacing:0.12em; font-family:var(--font-body); font-size:13px; }
+
+/* live tiles + verdict row */
+.tile-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.tile { background:var(--card); border:1px solid var(--hairline); border-radius:var(--r-card); padding:0.9rem 1rem; }
+.tile .t-label { font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--n3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tile .t-sub { font-size:10px; color:var(--n4); letter-spacing:0.06em; margin-top:-2px; }
+.tile .t-value { font-size:22px; font-variant-numeric:tabular-nums; margin-top:4px; }
+.tile .t-delta { font-size:12px; font-variant-numeric:tabular-nums; margin-top:2px; }
+.tile .t-avg { font-size:10.5px; color:var(--n3); font-variant-numeric:tabular-nums; }
+.up { color:var(--saffron); }
+.dn { color:var(--down); }
+.flat { color:var(--n3); }
+
+/* range pills */
+.ranges { display:flex; gap:6px; }
+.range-btn { font-size:11px; letter-spacing:0.14em; padding:5px 13px; border-radius:var(--r-pill);
+             border:1px solid var(--hairline); background:transparent; color:var(--n3); cursor:pointer; }
+.range-btn.active { border-color:var(--saffron); color:var(--saffron); }
+.dash-controls { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:1.4rem 0 0.2rem; }
+
+/* charts */
+.chart-card .c-title { font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:var(--n2);
+                       display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.chart-card .c-legend { font-size:10.5px; color:var(--n3); letter-spacing:0.04em; }
+.chart-card .c-legend .sw { display:inline-block; width:14px; height:2px; vertical-align:middle; margin:0 5px 2px 10px; }
+.chart-card svg { display:block; width:100%; height:auto; margin-top:8px; }
+.chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.marker-notes { font-size:11px; color:var(--n3); margin-top:6px; line-height:1.6; }
+.marker-notes .mdot { color:var(--saffron); margin-right:5px; }
+.empty { color:var(--n3); font-size:13px; padding:1.2rem 0; text-align:center; }
+
+/* entry */
+.week-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:1.2rem; }
+.week-row label { font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:var(--n3); }
+input[type=date] { font-family:var(--font-body); font-size:15px; padding:9px 12px; background:var(--card);
+                   color:var(--cream); border:1px solid var(--border-strong); border-radius:var(--r-input);
+                   color-scheme:dark; }
+.plat { margin-bottom:1rem; }
+.plat-title { font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:var(--n2); margin-bottom:0.7rem; }
+.field-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px 14px; }
+.field label { display:block; font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--n3); margin-bottom:3px; }
+.field .in-wrap { display:flex; align-items:center; gap:8px; }
+.field input { flex:1; min-width:0; font-family:var(--font-body); font-size:17px; font-variant-numeric:tabular-nums;
+               padding:10px 12px; background:var(--ink); color:var(--cream);
+               border:1px solid var(--hairline); border-radius:var(--r-input); outline:none;
+               transition:border-color .4s var(--ease); }
+.field input:focus { border-color:var(--saffron); }
+.field .delta { font-size:12px; font-variant-numeric:tabular-nums; min-width:52px; text-align:right; }
+details.extras summary { cursor:pointer; list-style:none; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--n3); margin:10px 0 0; }
+details.extras summary::-webkit-details-marker { display:none; }
+details.extras summary::before { content:'▸ '; color:var(--saffron); }
+details.extras[open] summary::before { content:'▾ '; }
+details.extras .field-grid { margin-top:10px; }
+textarea, input.txt { width:100%; font-family:var(--font-body); font-size:15px; padding:10px 12px; background:var(--ink);
+  color:var(--cream); border:1px solid var(--hairline); border-radius:var(--r-input); outline:none; resize:vertical; }
+textarea:focus, input.txt:focus { border-color:var(--saffron); }
+.meta-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+.meta-grid label { display:block; font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--n3); margin-bottom:3px; }
+
+.save-row { display:flex; align-items:center; gap:14px; margin-top:1.4rem; flex-wrap:wrap; }
+.save-btn { font-family:var(--font-body); font-size:13px; letter-spacing:0.24em; text-transform:uppercase;
+            padding:14px 44px; border-radius:var(--r-pill); border:1px solid var(--saffron);
+            background:transparent; color:var(--saffron); cursor:pointer; transition:all .5s var(--ease); }
+.save-btn:hover { background:var(--saffron); color:var(--ink); box-shadow:0 0 32px rgba(246,162,92,0.35); }
+.save-btn:disabled { opacity:.35; cursor:not-allowed; box-shadow:none; }
+.save-btn.glow { background:var(--saffron); color:var(--ink); box-shadow:0 0 46px rgba(246,162,92,0.55); }
+.save-note { font-size:12px; color:var(--n3); }
+.save-note.ok { color:var(--saffron); }
+.save-note.err { color:var(--down); }
+.phase2 { font-size:11px; color:var(--n4); margin-top:2.5rem; line-height:1.7; }
+
+/* gate */
+#gate { position:fixed; inset:0; z-index:100; background:var(--ink); display:flex; align-items:center; justify-content:center; padding:1.5rem; }
+.gate-card { width:100%; max-width:360px; text-align:center; }
+.gate-card h2 { font-family:var(--font-display); font-weight:400; font-size:20px; letter-spacing:0.3em; text-transform:uppercase; margin-bottom:6px; }
+.gate-card .lead { color:var(--n3); font-size:13px; margin-bottom:1.6rem; }
+.gate-card input { width:100%; font-family:var(--font-body); font-size:15px; padding:13px 14px; text-align:center;
+  border:1px solid var(--border-strong); border-radius:var(--r-input); background:var(--card); color:var(--cream); outline:none; }
+.gate-card input:focus { border-color:var(--saffron); }
+.gate-card .submit-btn { display:block; width:100%; padding:13px; margin-top:12px; font-family:var(--font-body);
+  font-size:13px; letter-spacing:0.24em; text-transform:uppercase; border:1px solid var(--saffron); border-radius:var(--r-pill);
+  cursor:pointer; background:transparent; color:var(--saffron); transition:all .5s var(--ease); }
+.gate-card .submit-btn:hover { background:var(--saffron); color:var(--ink); }
+.gate-err { color:var(--down); font-size:13px; margin-top:12px; min-height:18px; }
+.gate-foot { font-size:11px; color:var(--n4); margin-top:1.4rem; line-height:1.5; }
+.app-hidden { display:none !important; }
+.view-hidden { display:none !important; }
+
+@media (max-width:760px){
+  .chart-grid { grid-template-columns:1fr; }
+  .tile-row { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-card">
+    <h2>MOSUN <span style="color:var(--saffron)">·</span> Growth</h2>
+    <p class="lead">Private dashboard — enter your passphrase.</p>
+    <input type="password" id="gatePass" placeholder="Passphrase" autocomplete="current-password" autofocus>
+    <button class="submit-btn" id="gateBtn">Unlock</button>
+    <div class="gate-err" id="gateErr"></div>
+    <p class="gate-foot">Same passphrase as the A&amp;R dashboard. Checked in your browser — never sent anywhere.</p>
+  </div>
+</div>
+
+<div class="container app-hidden" id="app">
+  <h1>MOSUN <span class="dot">·</span> GROWTH</h1>
+  <p class="sub">Are we growing? — weekly snapshots, two markets</p>
+
+  <div class="tabs">
+    <button class="tab active" id="tabDash">Dashboard</button>
+    <button class="tab" id="tabEntry">Entry</button>
+    <span class="spacer"></span>
+    <span class="status" id="status">Loading…</span>
+  </div>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <div id="viewDash">
+    <div class="tile-row" id="liveTiles"></div>
+
+    <div class="section-head">Verdict — week over week</div>
+    <div class="tile-row" id="verdictRow"></div>
+
+    <div class="dash-controls">
+      <div class="ranges" id="ranges">
+        <button class="range-btn" data-r="4">4W</button>
+        <button class="range-btn active" data-r="12">12W</button>
+        <button class="range-btn" data-r="0">ALL</button>
+      </div>
+      <span class="c-legend" style="font-size:11px;color:var(--n4);">▲ up in saffron · ▼ down muted · <span style="color:var(--saffron)">◆</span> marker</span>
+    </div>
+
+    <div class="section-head">Global</div>
+    <div class="chart-grid" id="chartsGlobal"></div>
+
+    <div class="section-head">China <span class="zh">中文</span></div>
+    <div class="chart-grid" id="chartsChina"></div>
+
+    <div id="dashEmpty" class="empty" style="display:none;">No snapshots yet — save your first from the Entry tab.</div>
+  </div>
+
+  <!-- ===================== ENTRY ===================== -->
+  <div id="viewEntry" class="view-hidden">
+    <div class="card">
+      <div class="week-row">
+        <label for="weekInput">Week ending</label>
+        <input type="date" id="weekInput">
+        <span class="save-note" id="weekNote"></span>
+      </div>
+
+      <div class="section-head" style="margin-top:0.4rem;">Global</div>
+      <div id="entryGlobal"></div>
+
+      <div class="section-head">China <span class="zh">中文</span></div>
+      <div id="entryChina"></div>
+
+      <div class="section-head">Marker &amp; notes</div>
+      <div class="meta-grid">
+        <div><label for="markerInput">Marker — release / ads events (shown as flags on charts)</label>
+          <input class="txt" id="markerInput" placeholder="e.g. released 三更半夜 · started Meta ads"></div>
+        <div><label for="notesInput">Notes</label>
+          <textarea id="notesInput" rows="2" placeholder="anything worth remembering about this week"></textarea></div>
+      </div>
+
+      <div class="save-row">
+        <button class="save-btn" id="saveBtn">Save</button>
+        <span class="save-note" id="saveNote"></span>
+      </div>
+    </div>
+    <p class="phase2">Phase 2 (stubs): Spotify CSV import — drop a Spotify for Artists timeline export here · YouTube auto-fetch via Data API key. Not wired yet.</p>
+  </div>
+</div>
+
+<script>
+/* ===== Config ===== */
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBHACycNb4bteP8p9jW-894zG0-IGYZzJYsvRJ5koZ8BgwBHkU2UXFUC6VuFQBnnOl/exec';
+
+// Same lock as the A&R dashboard (same token, same passphrase — see dashboard-k7m2x9.html).
+var LOCK = { "s": "S45NEMBGdVpQEt+HaQkxkg==", "i": "Jchnqw2o94hSlZrk", "c": "sl1TtRzcfOdFJ9lu5t7DytLCDesClEOabVuvW6zeyEn/mNryrg==" };
+var READ_TOKEN = null;
+
+/* ===== Field / platform config (param names mirror Code.gs GROWTH_COLS) ===== */
+var GROUPS = [
+  { title:'TikTok', market:'g', fields:[
+      ['ttFollowers','Followers'], ['ttViews7','Views (7d)'],
+      ['ttBestPost','Best post','text'], ['ttBestViews','Best post views'] ] },
+  { title:'Spotify', market:'g', fields:[
+      ['spListeners','Monthly listeners'], ['spFollowers','Followers'],
+      ['spStreams28','Streams (28d)'], ['spSingle','Single streams'] ],
+    extras:[ ['spSuper','Super listeners'], ['spActive','Active listeners'], ['spNew','New listeners'] ] },
+  { title:'YouTube', market:'g', fields:[ ['ytSubs','Subscribers'], ['ytViews','Total views'] ] },
+  { title:'Instagram', market:'g', fields:[ ['igFollowers','Followers'] ] },
+  { title:'抖音', market:'c', fields:[ ['dyFollowers','Followers'], ['dyViews7','Views (7d)'] ] },
+  { title:'小红书', market:'c', fields:[ ['xhsFollowers','Followers'], ['xhsViews7','Views (7d)'] ] },
+  { title:'微博', market:'c', fields:[ ['wbFollowers','Followers'] ] },
+  { title:'网易云音乐', market:'c', fields:[ ['neFans','Fans'], ['nePlays','Plays'] ] }
+];
+
+var HEADLINE = [
+  { key:'ttFollowers',  label:'TikTok',   sub:'followers' },
+  { key:'spListeners',  label:'Spotify',  sub:'monthly listeners' },
+  { key:'ytSubs',       label:'YouTube',  sub:'subs' },
+  { key:'igFollowers',  label:'Instagram',sub:'followers' },
+  { key:'dyFollowers',  label:'抖音',      sub:'followers' },
+  { key:'xhsFollowers', label:'小红书',    sub:'followers' },
+  { key:'wbFollowers',  label:'微博',      sub:'followers' },
+  { key:'neFans',       label:'网易云',    sub:'fans' }
+];
+
+var CHARTS = {
+  g: [
+    { title:'TikTok',   primary:['ttFollowers','Followers'], secondary:['ttViews7','Views 7d'] },
+    { title:'Spotify',  primary:['spListeners','Monthly listeners'], secondary:['spStreams28','Streams 28d'] },
+    { title:'YouTube',  primary:['ytSubs','Subscribers'], secondary:['ytViews','Views'] },
+    { title:'Instagram',primary:['igFollowers','Followers'] }
+  ],
+  c: [
+    { title:'抖音',      primary:['dyFollowers','Followers'], secondary:['dyViews7','Views 7d'] },
+    { title:'小红书',    primary:['xhsFollowers','Followers'], secondary:['xhsViews7','Views 7d'] },
+    { title:'微博',      primary:['wbFollowers','Followers'] },
+    { title:'网易云音乐', primary:['neFans','Fans'], secondary:['nePlays','Plays'] }
+  ]
+};
+
+/* ===== State ===== */
+var state = { rows: [], live: null, range: 12 };
+function $(id){ return document.getElementById(id); }
+
+/* ===== JSONP (sidesteps CORS — same pattern as the A&R dashboard) ===== */
+var jsonpId = 0;
+function jsonp(params){
+  return new Promise(function(resolve,reject){
+    var cb = 'mosun_cb_' + (jsonpId++);
+    var s = document.createElement('script');
+    var to = setTimeout(function(){ cleanup(); reject(new Error('Request timed out')); }, 20000);
+    function cleanup(){ clearTimeout(to); try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(s.parentNode) s.parentNode.removeChild(s); }
+    window[cb] = function(data){ cleanup(); resolve(data); };
+    params.callback = cb;
+    var q = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&');
+    s.src = SCRIPT_URL + '?' + q;
+    s.onerror = function(){ cleanup(); reject(new Error('Network error')); };
+    document.head.appendChild(s);
+  });
+}
+
+/* ===== Number helpers ===== */
+// "12.3K" / "1.2M" / "3.4万" / "1.2亿" / "1,234" → number, else null.
+function parseMetric(raw){
+  if (raw === null || raw === undefined) return null;
+  var s = String(raw).trim().replace(/,/g,'');
+  if (s === '') return null;
+  var m = s.match(/^([\d.]+)\s*([kKmMbB万亿])?$/);
+  if (!m) return null;
+  var mult = { k:1e3, m:1e6, b:1e9, '万':1e4, '亿':1e8 }[(m[2]||'').toLowerCase()] || 1;
+  var n = parseFloat(m[1]) * mult;
+  return isNaN(n) ? null : Math.round(n);
+}
+function num(v){ return (typeof v === 'number' && !isNaN(v)) ? v : parseMetric(v); }
+function fmtShort(n){
+  if (n === null || n === undefined) return '—';
+  var a = Math.abs(n);
+  if (a >= 1e6) return (Math.round(n/1e5)/10) + 'M';
+  if (a >= 1e4) return (Math.round(n/100)/10) + 'K';
+  return n.toLocaleString('en-GB');
+}
+function fmtDelta(d){ return (d > 0 ? '+' : d < 0 ? '−' : '±') + fmtShort(Math.abs(d)); }
+function fmtDate(iso){
+  var p = iso.split('-');
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(p[2],10) + ' ' + months[parseInt(p[1],10)-1];
+}
+function lastSunday(){
+  var d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
+}
+
+/* ===== Data ===== */
+function loadData(){
+  $('status').textContent = 'Loading…'; $('status').className = 'status';
+  return jsonp({ action:'growthData', token: READ_TOKEN }).then(function(res){
+    if (res.error) throw new Error(res.error);
+    state.rows = (res.rows || []).slice().sort(function(a,b){ return a.week < b.week ? -1 : 1; });
+    state.live = res.live || null;
+    $('status').textContent = state.rows.length ? (state.rows.length + ' weeks logged') : 'no snapshots yet';
+    renderDash();
+    prefillEntry();
+  }).catch(function(err){
+    $('status').textContent = err.message; $('status').className = 'status err';
+  });
+}
+
+// Latest non-null value of key, plus previous non-null and prior-4 average (excluding latest).
+function metricStats(key){
+  var vals = [];
+  state.rows.forEach(function(r){ var v = num(r[key]); if (v !== null) vals.push({ week:r.week, v:v }); });
+  if (!vals.length) return null;
+  var latest = vals[vals.length-1];
+  var prev = vals.length > 1 ? vals[vals.length-2] : null;
+  var prior = vals.slice(Math.max(0, vals.length-5), vals.length-1);
+  var avg = prior.length ? prior.reduce(function(s,x){ return s+x.v; },0) / prior.length : null;
+  return { latest:latest, prev:prev, avg:avg };
+}
+
+/* ===== Dashboard render ===== */
+function renderDash(){
+  // live tiles
+  var lt = '';
+  if (state.live){
+    lt += '<div class="tile"><div class="t-label">Feedback</div><div class="t-value">' + state.live.feedback.toLocaleString('en-GB') + '</div><div class="t-avg">responses · live</div></div>';
+    lt += '<div class="tile"><div class="t-label">Moonwalkers</div><div class="t-value">' + state.live.moonwalkers.toLocaleString('en-GB') + '</div><div class="t-avg">fans · live</div></div>';
+  }
+  $('liveTiles').innerHTML = lt;
+
+  // verdict row
+  var vr = '';
+  HEADLINE.forEach(function(h){
+    var st = metricStats(h.key);
+    var body;
+    if (!st){
+      body = '<div class="t-value flat">—</div><div class="t-delta flat">no data</div>';
+    } else {
+      var deltaHtml = '<span class="flat">first week</span>';
+      if (st.prev){
+        var d = st.latest.v - st.prev.v;
+        var cls = d > 0 ? 'up' : d < 0 ? 'dn' : 'flat';
+        var arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+        deltaHtml = '<span class="' + cls + '">' + arrow + ' ' + fmtDelta(d) + ' WoW</span>';
+      }
+      var avgHtml = '';
+      if (st.avg){
+        var pct = (st.latest.v - st.avg) / st.avg * 100;
+        avgHtml = '<div class="t-avg">' + (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(1) + '% vs 4w avg</div>';
+      }
+      body = '<div class="t-value">' + fmtShort(st.latest.v) + '</div><div class="t-delta">' + deltaHtml + '</div>' + avgHtml;
+    }
+    vr += '<div class="tile"><div class="t-label">' + h.label + '</div><div class="t-sub">' + h.sub + '</div>' + body + '</div>';
+  });
+  $('verdictRow').innerHTML = vr;
+
+  // charts
+  var rows = state.range ? state.rows.slice(-state.range) : state.rows;
+  $('dashEmpty').style.display = state.rows.length ? 'none' : 'block';
+  renderChartSection($('chartsGlobal'), CHARTS.g, rows);
+  renderChartSection($('chartsChina'), CHARTS.c, rows);
+}
+
+function renderChartSection(el, specs, rows){
+  el.innerHTML = '';
+  specs.forEach(function(spec){
+    var card = document.createElement('div');
+    card.className = 'card chart-card';
+    var legend = '<span class="c-legend"><span class="sw" style="background:var(--cream)"></span>' + spec.primary[1];
+    if (spec.secondary) legend += '<span class="sw" style="background:var(--saffron-soft)"></span>' + spec.secondary[1] + ' <span style="color:var(--n4)">(own scale)</span>';
+    legend += '</span>';
+    card.innerHTML = '<div class="c-title"><span>' + spec.title + '</span>' + legend + '</div>';
+    el.appendChild(card);
+    drawChart(card, spec, rows);
+  });
+}
+
+function drawChart(card, spec, rows){
+  var W = Math.max(300, card.clientWidth - 40), H = 200;
+  var padL = 46, padR = 14, padT = 20, padB = 26;
+
+  function seriesPoints(key){
+    var pts = [];
+    rows.forEach(function(r){ var v = num(r[key]); if (v !== null) pts.push({ week:r.week, v:v }); });
+    return pts;
+  }
+  var p1 = seriesPoints(spec.primary[0]);
+  var p2 = spec.secondary ? seriesPoints(spec.secondary[0]) : [];
+
+  if (!p1.length && !p2.length){
+    card.insertAdjacentHTML('beforeend', '<div class="empty" style="padding:2.4rem 0;">no data yet</div>');
+    return;
+  }
+
+  var t = function(w){ return new Date(w + 'T00:00:00').getTime(); };
+  var allWeeks = rows.map(function(r){ return r.week; });
+  var tmin = t(allWeeks[0]), tmax = t(allWeeks[allWeeks.length-1]);
+  if (tmin === tmax){ tmin -= 43e6; tmax += 43e6; }
+  var X = function(w){ return padL + (t(w) - tmin) / (tmax - tmin) * (W - padL - padR); };
+
+  function yScale(pts){
+    var vs = pts.map(function(p){ return p.v; });
+    var lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+    if (lo === hi){ lo = lo * 0.95 - 1; hi = hi * 1.05 + 1; }
+    var pad = (hi - lo) * 0.12;
+    lo -= pad; hi += pad;
+    return function(v){ return padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB) ; };
+  }
+
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+
+  // y grid + labels from primary (or secondary if no primary)
+  var gridPts = p1.length ? p1 : p2;
+  var gvs = gridPts.map(function(p){ return p.v; });
+  var glo = Math.min.apply(null, gvs), ghi = Math.max.apply(null, gvs);
+  var Y1 = yScale(gridPts);
+  [glo, (glo+ghi)/2, ghi].forEach(function(v){
+    var y = Y1(v);
+    svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="rgba(232,230,217,0.07)"/>';
+    svg += '<text x="' + (padL-7) + '" y="' + (y+3.5) + '" text-anchor="end" font-size="9.5" fill="#8A8880" font-family="inherit">' + fmtShort(Math.round(v)) + '</text>';
+  });
+
+  // x labels: first + last (+ middle if room)
+  var xlabels = [allWeeks[0]];
+  if (allWeeks.length > 2) xlabels.push(allWeeks[Math.floor(allWeeks.length/2)]);
+  if (allWeeks.length > 1) xlabels.push(allWeeks[allWeeks.length-1]);
+  xlabels.forEach(function(w,i){
+    var anchor = i === 0 ? 'start' : (i === xlabels.length-1 ? 'end' : 'middle');
+    svg += '<text x="' + X(w) + '" y="' + (H-8) + '" text-anchor="' + anchor + '" font-size="9.5" fill="#8A8880" font-family="inherit">' + fmtDate(w) + '</text>';
+  });
+
+  // marker flags
+  rows.forEach(function(r){
+    if (!r.marker) return;
+    var x = X(r.week);
+    svg += '<line x1="' + x + '" y1="' + padT + '" x2="' + x + '" y2="' + (H-padB) + '" stroke="rgba(246,162,92,0.35)" stroke-dasharray="2 3"/>';
+    svg += '<g><rect x="' + (x-5) + '" y="' + (padT-10) + '" width="10" height="10" fill="transparent"/>' +
+           '<path d="M ' + x + ' ' + (padT-8) + ' l 4 4 l -4 4 l -4 -4 Z" fill="#F6A25C"><title>' +
+           fmtDate(r.week) + ' — ' + String(r.marker).replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</title></path></g>';
+  });
+
+  function pathFor(pts, Y){
+    return pts.map(function(p,i){ return (i ? 'L' : 'M') + X(p.week).toFixed(1) + ' ' + Y(p.v).toFixed(1); }).join(' ');
+  }
+  // secondary first (under primary), own scale
+  if (p2.length){
+    var Y2 = yScale(p2);
+    svg += '<path d="' + pathFor(p2, Y2) + '" fill="none" stroke="#FBC89A" stroke-opacity="0.55" stroke-width="1.4" stroke-dasharray="4 4"/>';
+    p2.forEach(function(p){ svg += '<circle cx="' + X(p.week) + '" cy="' + Y2(p.v) + '" r="2.4" fill="#FBC89A" fill-opacity="0.7"><title>' + fmtDate(p.week) + ' · ' + spec.secondary[1] + ' ' + p.v.toLocaleString('en-GB') + '</title></circle>'; });
+  }
+  if (p1.length){
+    svg += '<path d="' + pathFor(p1, Y1) + '" fill="none" stroke="#E8E6D9" stroke-width="1.8"/>';
+    p1.forEach(function(p){ svg += '<circle cx="' + X(p.week) + '" cy="' + Y1(p.v) + '" r="3" fill="#E8E6D9"><title>' + fmtDate(p.week) + ' · ' + spec.primary[1] + ' ' + p.v.toLocaleString('en-GB') + '</title></circle>'; });
+  }
+  svg += '</svg>';
+  card.insertAdjacentHTML('beforeend', svg);
+
+  // marker list under the chart
+  var notes = rows.filter(function(r){ return r.marker; });
+  if (notes.length){
+    card.insertAdjacentHTML('beforeend', '<div class="marker-notes">' + notes.map(function(r){
+      return '<span class="mdot">◆</span>' + fmtDate(r.week) + ' — ' + String(r.marker).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    }).join('<br>') + '</div>');
+  }
+}
+
+/* ===== Entry render ===== */
+function buildEntry(){
+  function fieldHtml(f){
+    var isText = f[2] === 'text';
+    return '<div class="field"><label for="f_' + f[0] + '">' + f[1] + '</label>' +
+      '<div class="in-wrap"><input id="f_' + f[0] + '" data-key="' + f[0] + '" ' +
+      (isText ? 'type="text" placeholder="—"' : 'type="text" inputmode="decimal" placeholder="—" data-num="1"') +
+      '><span class="delta" id="d_' + f[0] + '"></span></div></div>';
+  }
+  function groupHtml(g){
+    var html = '<div class="plat"><div class="plat-title">' + g.title + '</div><div class="field-grid">' +
+      g.fields.map(fieldHtml).join('') + '</div>';
+    if (g.extras){
+      html += '<details class="extras"><summary>Audience extras — super / active / new</summary><div class="field-grid">' +
+        g.extras.map(fieldHtml).join('') + '</div></details>';
+    }
+    return html + '</div>';
+  }
+  $('entryGlobal').innerHTML = GROUPS.filter(function(g){ return g.market === 'g'; }).map(groupHtml).join('');
+  $('entryChina').innerHTML  = GROUPS.filter(function(g){ return g.market === 'c'; }).map(groupHtml).join('');
+
+  document.querySelectorAll('#viewEntry input[data-key]').forEach(function(inp){
+    inp.addEventListener('input', function(){ updateDelta(inp); });
+  });
+  $('weekInput').value = lastSunday();
+  $('weekInput').addEventListener('change', prefillEntry);
+}
+
+function allFieldDefs(){
+  var out = [];
+  GROUPS.forEach(function(g){ (g.fields.concat(g.extras || [])).forEach(function(f){ out.push(f); }); });
+  return out;
+}
+
+// Row for the selected week (if it exists) and the latest row BEFORE it (delta base).
+function entryContext(){
+  var week = $('weekInput').value;
+  var existing = null, prev = null;
+  state.rows.forEach(function(r){
+    if (r.week === week) existing = r;
+    else if (r.week < week && (!prev || r.week > prev.week)) prev = r;
+  });
+  return { week:week, existing:existing, prev:prev };
+}
+
+function prefillEntry(){
+  var ctx = entryContext();
+  var source = ctx.existing || ctx.prev;
+  allFieldDefs().forEach(function(f){
+    var inp = $('f_' + f[0]);
+    var v = source ? source[f[0]] : null;
+    inp.value = (v === null || v === undefined) ? '' : v;
+    updateDelta(inp);
+  });
+  $('markerInput').value = ctx.existing && ctx.existing.marker ? ctx.existing.marker : '';
+  $('notesInput').value  = ctx.existing && ctx.existing.notes  ? ctx.existing.notes  : '';
+  $('weekNote').textContent = ctx.existing
+    ? 'existing week — editing saved values'
+    : (ctx.prev ? 'prefilled from ' + fmtDate(ctx.prev.week) + ' — deltas as you type' : 'first snapshot');
+  $('weekNote').className = 'save-note' + (ctx.existing ? ' ok' : '');
+}
+
+function updateDelta(inp){
+  var el = $('d_' + inp.dataset.key);
+  if (!el) return;
+  if (!inp.dataset.num){ el.textContent = ''; return; }
+  var ctx = entryContext();
+  var base = ctx.prev ? num(ctx.prev[inp.dataset.key]) : null;
+  var cur = parseMetric(inp.value);
+  if (cur === null || base === null){ el.textContent = ''; return; }
+  var d = cur - base;
+  if (d === 0){ el.textContent = ''; return; }   // untouched prefill → no chip
+  el.textContent = fmtDelta(d);
+  el.className = 'delta ' + (d > 0 ? 'up' : 'dn');
+}
+
+function saveSnapshot(){
+  var week = $('weekInput').value;
+  if (!week){ $('saveNote').textContent = 'pick a week-ending date'; $('saveNote').className = 'save-note err'; return; }
+
+  var params = { action:'growthSave', token: READ_TOKEN, week: week };
+  var n = 0;
+  allFieldDefs().forEach(function(f){
+    var v = $('f_' + f[0]).value.trim();
+    if (v !== ''){ params[f[0]] = v; n++; }
+  });
+  if ($('markerInput').value.trim()) params.marker = $('markerInput').value.trim();
+  if ($('notesInput').value.trim())  params.notes  = $('notesInput').value.trim();
+  if (!n && !params.marker && !params.notes){
+    $('saveNote').textContent = 'nothing to save'; $('saveNote').className = 'save-note err'; return;
+  }
+
+  $('saveBtn').disabled = true;
+  $('saveNote').textContent = 'saving…'; $('saveNote').className = 'save-note';
+  jsonp(params).then(function(res){
+    if (res.error) throw new Error(res.error);
+    $('saveBtn').classList.add('glow');
+    $('saveNote').textContent = 'Saved · week ' + res.week + ' · ' + res.fields.length + ' fields' + (res.updated ? ' (updated)' : '');
+    $('saveNote').className = 'save-note ok';
+    setTimeout(function(){ $('saveBtn').classList.remove('glow'); }, 1600);
+    return loadData();
+  }).catch(function(err){
+    $('saveNote').textContent = err.message; $('saveNote').className = 'save-note err';
+  }).then(function(){ $('saveBtn').disabled = false; });
+}
+
+/* ===== Phase 2 stubs (not wired) ===== */
+function importSpotifyCsv(file){ /* Phase 2: parse S4A timeline CSV → growthSave patches */ }
+function fetchYouTubeStats(){ /* Phase 2: YouTube Data API v3, key from localStorage, channel UCuv6XNA4PI4KmT6cauM3EbQ */ }
+
+/* ===== Tabs ===== */
+function showView(which){
+  $('viewDash').classList.toggle('view-hidden', which !== 'dash');
+  $('viewEntry').classList.toggle('view-hidden', which !== 'entry');
+  $('tabDash').classList.toggle('active', which === 'dash');
+  $('tabEntry').classList.toggle('active', which === 'entry');
+}
+$('tabDash').addEventListener('click', function(){ showView('dash'); });
+$('tabEntry').addEventListener('click', function(){ showView('entry'); });
+$('saveBtn').addEventListener('click', saveSnapshot);
+document.querySelectorAll('.range-btn').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.range-btn').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    state.range = parseInt(b.dataset.r, 10);
+    renderDash();
+  });
+});
+var resizeTo = null;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTo); resizeTo = setTimeout(renderDash, 250);
+});
+
+/* ===== Passphrase lock (WebCrypto AES-GCM + PBKDF2 — same as A&R dashboard) ===== */
+function unb64(s){ return Uint8Array.from(atob(s), function(c){ return c.charCodeAt(0); }); }
+function deriveKey(pass, salt){
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey'])
+    .then(function(mat){
+      return crypto.subtle.deriveKey(
+        { name:'PBKDF2', salt:salt, iterations:250000, hash:'SHA-256' },
+        mat, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+    });
+}
+function decryptToken(pass, lock){
+  return deriveKey(pass, unb64(lock.s)).then(function(key){
+    return crypto.subtle.decrypt({ name:'AES-GCM', iv:unb64(lock.i) }, key, unb64(lock.c));
+  }).then(function(pt){ return new TextDecoder().decode(pt); });
+}
+function unlockApp(){
+  $('gate').remove();
+  $('app').classList.remove('app-hidden');
+  buildEntry();
+  loadData();
+  if (location.hash === '#entry') showView('entry');
+}
+function initGate(){
+  var cached = sessionStorage.getItem('mosun_ar_token');   // shared with the A&R dashboard
+  if (cached){ READ_TOKEN = cached; unlockApp(); return; }
+  function attempt(){
+    var pass = $('gatePass').value;
+    if (!pass){ $('gateErr').textContent = 'Enter a passphrase.'; return; }
+    $('gateBtn').disabled = true; $('gateErr').textContent = '';
+    decryptToken(pass, LOCK).then(function(token){
+      READ_TOKEN = token;
+      sessionStorage.setItem('mosun_ar_token', token);
+      unlockApp();
+    }).catch(function(){
+      $('gateErr').textContent = 'Wrong passphrase.';
+      $('gateBtn').disabled = false;
+      $('gatePass').select();
+    });
+  }
+  $('gateBtn').addEventListener('click', attempt);
+  $('gatePass').addEventListener('keydown', function(e){ if (e.key === 'Enter') attempt(); });
+  $('gatePass').focus();
+}
+initGate();
+</script>
+</body>
+</html>
