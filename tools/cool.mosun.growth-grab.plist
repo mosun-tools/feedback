@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  MOSUN growth auto-grab — runs tools/grab-growth.mjs --save every Sunday at 20:00.
+  Install (once):
+    cp tools/cool.mosun.growth-grab.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cool.mosun.growth-grab.plist
+  Test-fire now:   launchctl kickstart -k gui/$(id -u)/cool.mosun.growth-grab
+  Log:             ~/Library/Logs/mosun-growth-grab.log
+  Remove:          launchctl bootout gui/$(id -u)/cool.mosun.growth-grab
+  If the Mac is asleep at 20:00 Sunday, launchd runs the job at next wake.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>cool.mosun.growth-grab</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>export PATH="/Users/gensrecords/.local/share/fnm/node-versions/v24.17.0/installation/bin:$PATH"; cd "$HOME/Desktop/Cowork/dev/feedback" &amp;&amp; echo "=== $(date) ===" &amp;&amp; node tools/grab-growth.mjs --save</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>0</integer></dict>
+  <key>StandardOutPath</key><string>/Users/gensrecords/Library/Logs/mosun-growth-grab.log</string>
+  <key>StandardErrorPath</key><string>/Users/gensrecords/Library/Logs/mosun-growth-grab.log</string>
+</dict>
+</plist>
