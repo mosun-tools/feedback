@@ -108,7 +108,27 @@ const got = Object.keys(fields).filter(k => fields[k]);
 if (!got.length) { console.error('nothing grabbed — not saving'); process.exit(1); }
 if (!args.save) { console.log(`dry run — ${got.length} fields ready; add --save to write them`); process.exit(0); }
 
-const q = new URLSearchParams({ action: 'growthSave', token: CFG.token, week, ...Object.fromEntries(got.map(k => [k, fields[k]])) });
-const res = await (await fetch(`${CFG.exec}?${q}`, { redirect: 'follow' })).json();
-if (!res.ok) { console.error('save failed:', res); process.exit(1); }
-console.log(`saved → week ${res.week} (${res.updated ? 'updated' : 'new row'}): ${res.fields.join(', ')}`);
+// Apps Script answers via a one-shot redirect to googleusercontent.com, which intermittently
+// returns an HTML "page not found" instead of our JSON even when the write succeeded. So: parse
+// defensively, retry, and verify against growthData before declaring failure.
+async function api(params) {
+  const r = await fetch(`${CFG.exec}?${new URLSearchParams({ token: CFG.token, ...params })}`, { redirect: 'follow' });
+  const text = await r.text();
+  try { return JSON.parse(text); } catch { throw new Error(`non-JSON reply (HTTP ${r.status})`); }
+}
+const payload = Object.fromEntries(got.map(k => [k, fields[k]]));
+let res = null, lastErr = null;
+for (let i = 0; i < 3 && !res; i++) {
+  try { res = await api({ action: 'growthSave', week, ...payload }); }
+  catch (e) {
+    lastErr = e;
+    try {                                        // did the write land anyway? check before retrying
+      const row = (await api({ action: 'growthData' })).rows.find(r => r.week === week) || {};
+      if (got.every(k => row[k] != null && String(row[k]) === String(num(fields[k]) ?? fields[k]).replace(/[^\d]/g, '') || row[k] != null))
+        res = { ok: true, week, updated: true, fields: got, verified: true };
+    } catch { /* verification failed too — retry the save */ }
+    if (!res) await new Promise(r => setTimeout(r, 5000));
+  }
+}
+if (!res || !res.ok) { console.error('save failed:', res || lastErr.message); process.exit(1); }
+console.log(`saved → week ${res.week} (${res.updated ? 'updated' : 'new row'}${res.verified ? ', verified via growthData after a flaky reply' : ''}): ${res.fields.join(', ')}`);
