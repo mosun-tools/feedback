@@ -44,8 +44,13 @@ const CFG = {
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const [k, v] = a.replace(/^--/, '').split('='); return [k, v ?? true]; }));
 
-function weekEnding(d = new Date()) {            // Sunday on or after today, local time
-  const x = new Date(d); x.setDate(x.getDate() + (7 - x.getDay()) % 7);
+// Which week-ending Sunday does this run belong to?
+//   Sunday            → today (the scheduled 23:59 run)
+//   Monday / Tuesday  → the Sunday just gone (launchd runs a missed job at next wake — still last week's numbers)
+//   Wednesday–Saturday→ the upcoming Sunday (an on-demand mid-week grab is this week's snapshot)
+function weekEnding(d = new Date()) {
+  const x = new Date(d), day = x.getDay();
+  x.setDate(x.getDate() + (day === 0 ? 0 : day <= 2 ? -day : 7 - day));
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
 const num = s => s == null ? null : Number(String(s).replace(/,/g, ''));
