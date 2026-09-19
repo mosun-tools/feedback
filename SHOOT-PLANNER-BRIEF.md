@@ -21,6 +21,11 @@ A single self-contained HTML page in this repo (unlisted, random-suffix filename
 ## Per shot, extract
 `{ day, post, beat#, duration, location, timeOfDay/light, framing, action, wardrobe (inferred, editable), props (inferred), onScreenText, audioCue }`
 
+**Every shot must be shootable without the weekly script in hand** (shots get shuffled into location blocks, away from their neighbours). So each also carries:
+`{ postTitle, postLength, start, end (where it lands in the post → "shot 3 of 5 · 0:07–0:11 of 0:18"), camera (positions spelled out), action as full second-person direction (never "same shot continues"), line (verbatim words) + lineType (to-camera / voice-over / lip-sync / sung-live), note (hold / hard cut / loop), textTime }`
+- Voice-over posts get one extra **audio-only item (beat 0)** with the full VO script to record; each camera shot shows the slice of VO that plays over it.
+- Top-level `posts[]` legend (title, post day, length, one-line concept) — edit-only posts are listed as **not on this shoot** and emit no shots. `setupNote` = the script's session setup / camera positions / bring list.
+
 ## Cluster for batch shooting
 - **Primary group: location/setting** (studio apartment, Taipei street, rooftop, café, transit, stage, gear-closeup) — shoot everything at one place together.
 - **Time-of-day / light as a scheduling constraint:** golden-hour shots scheduled at golden hour, night at night, daytime/indoor flexible.

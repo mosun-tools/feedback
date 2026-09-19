@@ -20,7 +20,7 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(
   consts[0] + '\n' + pure[1] + '\n' +
-  ';globalThis.api = { clusterShots, summarize, wardrobePropsMaster, buildCallSheetMd, buildCsv, sortShots, fmtMinutes, shotSource, shotMeta, shotLabel, weekCode, LOCATIONS, LIGHTS };',
+  ';globalThis.api = { clusterShots, summarize, wardrobePropsMaster, buildCallSheetMd, buildCsv, sortShots, fmtMinutes, shotSource, shotMeta, shotLabel, weekCode, postName, postStats, shotTimeline, shotFields, fmtClock, LOCATIONS, LIGHTS };',
   ctx
 );
 const A = ctx.api;
@@ -112,13 +112,76 @@ check('shotMeta + md show framing and shot length per shot', () => {
   assert.equal(A.shotMeta({ framing: '', duration: 3 }), '3s');
   const blocks = A.clusterShots(shots, 'location');
   const md = A.buildCallSheetMd('W', '', blocks, A.summarize(shots), A.wardrobePropsMaster(shots));
-  assert.ok(md.includes('**Mon · Jun 8 · P1** (POV low · 4s)'));   // framing + length on the row
-  assert.ok(md.includes('(close · 3s)'));
+  assert.ok(md.includes('  - Camera: POV low'));   // framing on its own line under the shot
+  assert.ok(md.includes('  - shot 2 of 2 · 4s'));  // length on the timeline line (no timecode in this fixture → no range)
+});
+
+// A shot as the detailed parse emits it — must be shootable without the script in hand.
+const v2 = [
+  { day: 'Sat · Sep 5', post: 'V2', postTitle: 'TREND — saxophone doom cue', postLength: 18, beat: 1, start: 0, end: 3, duration: 3,
+    location: 'studio-apartment', light: 'night', framing: 'close-up', camera: 'Position D — close on face, static',
+    action: 'You sit at the desk at night, headphones on, nodding along.', line: '', lineType: 'none', note: '',
+    wardrobe: 'black tee', props: ['headphones'], onScreenText: 'the song sounded perfect at 4am.', textTime: '0:00–0:03', audioCue: 'sax theme, barely audible' },
+  { day: 'Sat · Sep 5', post: 'V2', postTitle: 'TREND — saxophone doom cue', postLength: 18, beat: 3, start: 7, end: 11, duration: 4,
+    location: 'studio-apartment', light: 'night', framing: 'close-up', camera: 'Position B — close on hands',
+    action: 'Your hands on the faders make one small satisfied adjustment.', line: '', lineType: 'none', note: 'stay oblivious',
+    wardrobe: 'black tee', props: [], onScreenText: '', textTime: '', audioCue: 'sax getting louder' },
+  { day: 'Wed · Sep 9', post: 'V4', postTitle: 'BELIEF — perfect is replaceable', postLength: 25, beat: 0, start: 0, end: 0, duration: 0,
+    location: 'studio-apartment', light: 'indoor', framing: 'audio only', camera: '',
+    action: 'Record the voice-over close-mic, low and unhurried.', line: 'take fourteen was perfect.\nperfect is replaceable. the crack isn\'t.', lineType: 'voice-over', note: '',
+    wardrobe: '', props: [], onScreenText: '', textTime: '', audioCue: '' },
+  { day: 'Wed · Sep 9', post: 'V4', postTitle: 'BELIEF — perfect is replaceable', postLength: 25, beat: 1, start: 0, end: 4, duration: 4,
+    location: 'studio-apartment', light: 'indoor', framing: 'close-up', camera: 'Position C — close on screen',
+    action: 'The OVDZ vocal take list on screen; move the cursor over take 14.', line: 'take fourteen was perfect.', lineType: 'voice-over', note: '',
+    wardrobe: '', props: [], onScreenText: 'take 14 was perfect.', textTime: '0:00–0:03', audioCue: 'take 14 under the VO' },
+];
+check('postName + fmtClock: which post, human clock', () => {
+  assert.equal(A.postName(v2[0]), 'V2 · TREND — saxophone doom cue');
+  assert.equal(A.postName({ post: 'P1' }), 'P1');
+  assert.equal(A.fmtClock(7), '0:07');
+  assert.equal(A.fmtClock(75), '1:15');
+});
+check('shotTimeline: shot N of M + where it lands in the post', () => {
+  const st = A.postStats(v2);
+  assert.equal(A.shotTimeline(v2[1], st), 'shot 3 of 3 · 0:07–0:11 of 0:18 · 4s');   // total never below the highest beat seen
+  assert.equal(A.shotTimeline(v2[3], st), 'shot 1 of 1 · 0:00–0:04 of 0:25 · 4s');   // beat-0 VO item not counted as a shot
+  assert.equal(A.shotTimeline(v2[2], st), 'audio only · runs under the whole post (0:25)');
+  assert.equal(A.shotTimeline({ day: 'x', post: 'P1', beat: 2, duration: 4 }, A.postStats([])), 'shot 2 · 4s');   // no timecode → no range
+});
+check('shotFields: camera / do / say / note / text / sound in reading order', () => {
+  const f = A.shotFields(v2[0]);
+  assert.deepEqual(f.map(x => x.k), ['Camera', 'Do', 'Text', 'Sound', 'Fit', 'Props']);
+  assert.equal(f[0].v, 'Position D — close on face, static · close-up');
+  assert.equal(f[2].t, '0:00–0:03');
+  const vo = A.shotFields(v2[2]);
+  assert.equal(vo.find(x => x.cls === 'say').k, 'Record');
+  assert.ok(/word for word/.test(vo.find(x => x.cls === 'say').how));
+  const over = A.shotFields(v2[3]).find(x => x.cls === 'say');
+  assert.equal(over.k, 'VO');   // plays over the shot — not spoken on camera
+  assert.equal(A.shotFields({ beat: 1, line: 'hi', lineType: 'to-camera' })[0].k, 'Say');
+  assert.ok(/voice-over/.test(over.how));
+  assert.equal(A.shotFields(v2[1]).find(x => x.k === 'Camera').v, 'Position B — close on hands · close-up');
+  assert.equal(A.shotFields({ camera: 'Close-up on face', framing: 'close-up' })[0].v, 'Close-up on face');   // no echo
+});
+check('buildCallSheetMd: each shot carries post, timeline, line; posts legend flags edit-only', () => {
+  const md = A.buildCallSheetMd('Week of Sep 3–9, 2026', '', A.clusterShots(v2, 'location'), A.summarize(v2), A.wardrobePropsMaster(v2), {
+    setupNote: 'One corner, positions A–D.',
+    posts: [{ day: 'Thu · Sep 3', post: 'V1', title: 'OVDZ #1 — live', length: 12, concept: 'room is empty', shoot: false, note: 'edit only — lipsync bank' },
+            { day: 'Sat · Sep 5', post: 'V2', title: 'TREND — saxophone doom cue', length: 18, concept: 'I write the cue', shoot: true, note: '' }],
+  });
+  assert.ok(md.includes('> Setup: One corner, positions A–D.'));
+  assert.ok(md.includes('**V1 · OVDZ #1 — live** — posts Thu · Sep 3 · 0:12 — NOT ON THIS SHOOT (edit only — lipsync bank)'));
+  assert.ok(md.includes('**Sat · Sep 5 · V2 — TREND — saxophone doom cue**'));
+  assert.ok(md.includes('  - shot 3 of 3 · 0:07–0:11 of 0:18 · 4s'));
+  assert.ok(md.includes('  - Text: 0:00–0:03 “the song sounded perfect at 4am.”'));
+  assert.ok(md.includes('  - Record (record this — word for word): take fourteen was perfect. / perfect is replaceable.'));
+  assert.ok(md.includes('`SEP03_SAT-V2-b3_'));   // V-numbered posts flow into the clip label
 });
 check('shotLabel: unique file-safe code (week + day + post + beat + slug)', () => {
   assert.equal(A.weekCode('Week of Jun 8–14, 2026'), 'JUN08');
   assert.equal(A.shotLabel({ day: 'Mon · Jun 8', post: 'P1', beat: 2, action: 'walk down a quiet lane' }, 'JUN08'), 'JUN08_MON-P1-b2_walk-down-a-quie');
   assert.equal(A.shotLabel({ day: 'Tuesday / June 9', post: 'P2 craft', beat: 1, framing: 'macro' }, ''), 'TUE-P2-b1_macro');
+  assert.equal(A.shotLabel({ day: 'Sat · Sep 5', post: 'V2', beat: 1, action: 'You sit at the desk, headphones on' }, 'SEP03'), 'SEP03_SAT-V2-b1_sit-at-the-desk');   // second-person directions: drop the "You"
 });
 check('buildCsv: header has label first + escaped rows', () => {
   const csv = A.buildCsv(shots, 'location', 'Week of Jun 8–14, 2026');

@@ -86,17 +86,37 @@ textarea.scripts::placeholder{ color:var(--n4); }
 .block .bwin{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--n3); }
 .block.constraint .bwin{ color:var(--saffron); }
 .block .bcount{ margin-left:auto; font-size:11px; letter-spacing:0.1em; color:var(--n3); }
-.shot{ display:flex; align-items:flex-start; gap:12px; padding:12px 18px; border-top:1px solid var(--hairline); }
+/* one shot = one self-contained card: which post, where it lands, what to do/say */
+.shot{ display:flex; align-items:flex-start; gap:14px; padding:16px 18px; border-top:1px solid var(--hairline); break-inside:avoid; }
 .shot input[type=checkbox]{ margin-top:3px; width:16px; height:16px; accent-color:var(--saffron); flex:none; }
-.shot .src{ font-size:11px; letter-spacing:0.06em; color:var(--saffron); flex:none; width:88px; white-space:normal; overflow-wrap:anywhere; line-height:1.4; }
-.shot .det{ flex:1; min-width:0; font-size:13px; display:flex; flex-direction:column; gap:4px; }
-.shot .flabel{ display:inline-block; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; letter-spacing:0; color:var(--saffron);
-  border:1px solid rgba(246,162,92,0.4); border-radius:var(--r-input); padding:1px 7px; margin-bottom:6px; user-select:all; }
-.shot .shotmeta{ display:block; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--saffron); }
-.shot .act{ display:block; color:var(--cream); }
-.shot .sub{ display:block; color:var(--n3); font-size:12px; }
-.shot .sub b{ color:var(--n2); font-weight:400; }
-.shot .ost{ display:block; color:var(--saffron-soft); font-size:12px; }
+.shot .det{ flex:1; min-width:0; font-size:13px; display:flex; flex-direction:column; gap:6px; }
+.shot .phead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.shot .pname{ font-family:var(--font-display); font-size:13px; letter-spacing:0.12em; text-transform:uppercase; color:var(--cream); }
+.shot .pday{ font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--n3); }
+.shot .tline{ font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--saffron); font-variant-numeric:tabular-nums; }
+.shot .flabel{ align-self:flex-start; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px; letter-spacing:0; color:var(--saffron);
+  border:1px solid rgba(246,162,92,0.4); border-radius:var(--r-input); padding:1px 7px; user-select:all; overflow-wrap:anywhere; }
+.shot .fields{ display:grid; grid-template-columns:74px 1fr; gap:6px 12px; margin-top:4px; }
+.shot .fk{ font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--n3); padding-top:3px; }
+.shot .fv{ color:var(--n2); min-width:0; overflow-wrap:anywhere; white-space:pre-line; }
+.shot .fv.do{ color:var(--cream); font-size:14px; }
+.shot .fv.say{ font-family:var(--font-quote); font-style:italic; font-size:17px; line-height:1.45; color:var(--cream);
+  border-left:2px solid var(--saffron); padding-left:12px; }
+.shot .fv.say .how{ display:block; font-family:var(--font-body); font-style:normal; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--saffron); margin-bottom:3px; }
+.shot .fv.ost{ color:var(--saffron-soft); }
+.shot .fv .t{ color:var(--n3); font-variant-numeric:tabular-nums; }
+@media (max-width:640px){ .shot .fields{ grid-template-columns:1fr; gap:2px; } .shot .fk{ padding-top:8px; } }
+
+/* posts legend — what each video is, and which ones aren't on this shoot */
+.posts{ display:flex; flex-direction:column; gap:10px; margin-bottom:26px; }
+.posts .p{ display:grid; grid-template-columns:auto 1fr; gap:2px 14px; font-size:13px; padding-left:12px; border-left:2px solid var(--border-strong); }
+.posts .p.off{ opacity:.55; }
+.posts .p .id{ font-family:var(--font-display); letter-spacing:0.12em; text-transform:uppercase; color:var(--saffron); grid-row:span 2; }
+.posts .p .ti{ color:var(--cream); }
+.posts .p .ti .m{ color:var(--n3); font-size:12px; }
+.posts .p .co{ color:var(--n3); font-size:12px; }
+.setupnote{ font-size:13px; color:var(--n2); margin-bottom:22px; }
+.setupnote b{ color:var(--cream); font-weight:400; letter-spacing:0.1em; text-transform:uppercase; font-size:11px; }
 
 .master{ display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:8px; }
 @media (max-width:640px){ .master{ grid-template-columns:1fr; } }
@@ -111,14 +131,21 @@ textarea.scripts::placeholder{ color:var(--n4); }
 @media print{
   @page{ margin:14mm; }
   html,body{ background:#fff; color:#111; }
-  .no-print{ display:none !important; }
+  .no-print, #intro, header .sub, .statusbar{ display:none !important; }
+  header{ margin-bottom:14px; }
+  .stat .num{ color:#111; } .lightnote{ color:#333; }
   .wrap{ max-width:none; padding:0; }
   .block, .panel{ border:1px solid #ccc; break-inside:avoid; }
   .block .bhead{ background:#f3f1ea; cursor:default; }
   .block .btitle, .sheet-head h2, .master .mcol h3{ color:#111; }
-  .block .bwin, .block.constraint .bwin, .shot .src, .shot .shotmeta, .shot .flabel, .lightnote b, .stat .num.acc{ color:#b8661f; }
+  .block{ break-inside:auto; }   /* detailed shot cards make blocks taller than a page — break between shots instead */
+  .block .bhead{ break-after:avoid; }
+  .block .bwin, .block.constraint .bwin, .shot .tline, .shot .flabel, .shot .fv.say .how, .posts .p .id, .lightnote b, .stat .num.acc{ color:#b8661f; }
   .shot .flabel{ border-color:#d8a26a; }
-  .shot .act{ color:#111; } .shot .sub, .shot .sub b, .master li, .stat .cap{ color:#333; }
+  .shot .fv.say{ border-left-color:#b8661f; }
+  .shot .pname, .shot .fv.do, .shot .fv.say, .posts .p .ti, .setupnote b{ color:#111; }
+  .shot .fv, .shot .fv.ost, .shot .fv .t, .shot .fk, .shot .pday, .posts .p .co, .posts .p .ti .m, .setupnote, .master li, .stat .cap{ color:#333; }
+  .shot{ border-top:1px solid #ccc; }
   .grip{ display:none; }
 }
 </style>
@@ -139,7 +166,8 @@ textarea.scripts::placeholder{ color:var(--n4); }
     <p class="quote">Shoot the whole week in a day — grouped by place, light, and look.</p>
     <p>Paste a week of TikTok scripts or drop the weekly PDF. It's parsed into shots, batched into a
        <b>shoot-day call sheet</b> — ordered blocks by location &amp; light, with wardrobe/props master lists —
-       then printed to carry on set. Text only; no video, nothing heavy.</p>
+       then printed to carry on set. Every shot says which post it's from, where it lands in that post's timeline,
+       and exactly what to do or say — so the weekly script can stay at home. Text only; no video, nothing heavy.</p>
     <p class="note">Chrome. Reuses your Assemble AI key. Wardrobe/props are inferred from the script vibe — edit on set.</p>
   </section>
 
@@ -170,7 +198,10 @@ textarea.scripts::placeholder{ color:var(--n4); }
       <button class="btn small no-print" id="printBtn">Print</button>
     </div>
     <div class="lightnote" id="lightNote"></div>
+    <div class="setupnote" id="setupNote"></div>
     <div class="summary" id="summary"></div>
+    <div class="label hidden" id="postsLabel">This week's posts</div>
+    <div class="posts" id="posts"></div>
     <div id="blocks"></div>
     <div class="label" style="margin-top:32px">Wardrobe &amp; props — pack once</div>
     <div class="master" id="master"></div>
@@ -193,6 +224,7 @@ if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.clou
    ======================================================================= */
 const LOCATIONS = ['studio-apartment','taipei-street','rooftop','cafe','transit','stage','gear-closeup','other'];
 const LIGHTS = ['golden-hour','blue-hour','night','day','indoor'];
+const LINE_TYPES = ['none','to-camera','voice-over','lip-sync','sung-live'];   // how a shot's line is delivered
 const LOC_LABEL = { 'studio-apartment':'Studio apartment','taipei-street':'Taipei street','rooftop':'Rooftop','cafe':'Café','transit':'Transit','stage':'Stage','gear-closeup':'Gear close-up','other':'Other' };
 const LIGHT_LABEL = { 'golden-hour':'Golden hour','blue-hour':'Blue hour','night':'Night','day':'Day','indoor':'Indoor' };
 const LIGHT_WINDOW = { 'golden-hour':'Golden hour — dawn or dusk (see light note)','blue-hour':'Blue hour — just after sunset','night':'After dark','day':'Daytime — flexible','indoor':'Indoor — anytime' };
@@ -278,39 +310,103 @@ function wardrobePropsMaster(shots){
   return { outfits, props };
 }
 
+function txt(v){ return String(v == null ? '' : v).trim(); }
+function num(v){ return (typeof v === 'number' && isFinite(v)) ? v : null; }
 function shotSource(s){ return [s.day, s.post].filter(Boolean).join(' · ') || '—'; }
 function shotDur(s){ const d = s.duration; return (typeof d === 'number' && isFinite(d) && d > 0) ? Math.round(d) + 's' : ''; }
 function shotMeta(s){ return [(s.framing || '').trim(), shotDur(s)].filter(Boolean).join(' · '); }   // "close-up · 2s"
+
+// "V2 · TREND — saxophone doom cue" — which post this shot belongs to
+function postName(s){ return [shortPost(s.post), txt(s.postTitle)].filter(Boolean).join(' · ') || '—'; }
+function shortPost(p){ p = String(p || ''); const m = p.match(/[PV]\s?\d+/i); return m ? m[0].replace(/\s+/, '').toUpperCase() : p.slice(0, 8); }
+function fmtClock(sec){ sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+
+// Per-post totals so a lone shot can say "shot 3 of 5 · 0:07–0:11 of 0:18".
+// beat 0 = an audio-only item (voice-over record), not counted as a camera shot.
+function postKey(s){ return (s.day || '') + ' | ' + shortPost(s.post); }
+function postStats(shots){
+  const m = new Map();
+  for(const s of shots){
+    const k = postKey(s), e = m.get(k) || { count: 0, length: 0 };
+    if(s.beat > 0) e.count = Math.max(e.count + 1, s.beat);   // never "shot 5 of 4" if a beat went missing
+    e.length = Math.max(e.length, num(s.postLength) || 0, num(s.end) || 0);
+    m.set(k, e);
+  }
+  return m;
+}
+function shotTimeline(s, stats){
+  const st = (stats && stats.get(postKey(s))) || { count: 0, length: 0 };
+  const len = st.length ? fmtClock(st.length) : '';
+  if(!(s.beat > 0)) return 'audio only' + (len ? ' · runs under the whole post (' + len + ')' : '');
+  const bits = ['shot ' + s.beat + (st.count ? ' of ' + st.count : '')];
+  const a = num(s.start), b = num(s.end);
+  if(a != null && b != null && b > a) bits.push(fmtClock(a) + '–' + fmtClock(b) + (len ? ' of ' + len : ''));
+  const d = shotDur(s) || (a != null && b != null && b > a ? Math.round(b - a) + 's' : '');
+  if(d) bits.push(d);
+  return bits.join(' · ');
+}
+
+const LINE_HOW = { 'to-camera':'say it to camera', 'voice-over':'voice-over — plays over this shot, recorded separately',
+  'lip-sync':'lip-sync to the track', 'sung-live':'sing it live' };
+function lineHow(s){ return !(s.beat > 0) && s.lineType === 'voice-over' ? 'record this — word for word' : (LINE_HOW[s.lineType] || ''); }
+
+// Everything needed to shoot this one shot, in reading order. Shared by the screen and the .md export.
+function shotFields(s){
+  const f = [];
+  const cam = [txt(s.camera), txt(s.framing)].filter(Boolean);
+  if(cam.length > 1 && cam[0].toLowerCase().includes(cam[1].toLowerCase())) cam.pop();   // "Position B — close on hands" already says it
+  if(cam.length) f.push({ k: 'Camera', v: cam.join(' · ') });
+  if(txt(s.action)) f.push({ k: 'Do', v: txt(s.action), cls: 'do' });
+  // a voice-over line isn't spoken on camera — label it VO so it reads as pacing, not a line to deliver
+  if(txt(s.line)) f.push({ k: !(s.beat > 0) ? 'Record' : s.lineType === 'voice-over' ? 'VO' : 'Say', v: txt(s.line), cls: 'say', how: lineHow(s) });
+  if(txt(s.note)) f.push({ k: 'Note', v: txt(s.note) });
+  if(txt(s.onScreenText)) f.push({ k: 'Text', v: '“' + txt(s.onScreenText) + '”', cls: 'ost', t: txt(s.textTime) });
+  if(txt(s.audioCue)) f.push({ k: 'Sound', v: txt(s.audioCue) });
+  if(txt(s.wardrobe)) f.push({ k: 'Fit', v: txt(s.wardrobe) });
+  if((s.props || []).length) f.push({ k: 'Props', v: s.props.join(', ') });
+  return f;
+}
 
 // A unique, filesystem-safe label per shot — name the recorded clip with this so
 // it's identifiable once it lands in MOSUN Footage. e.g. JUN08_MON-P1-b2_walk-a-lane
 function slug16(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 16).replace(/-+$/, ''); }
 function dayCode(s){ const m = String(s.day || '').match(/mon|tue|wed|thu|fri|sat|sun/i); return m ? m[0].toUpperCase() : (slug16(s.day).slice(0, 3).toUpperCase() || 'DAY'); }
-function postCode(s){ const m = String(s.post || '').match(/p\s?\d+/i); return m ? m[0].replace(/\s+/, '').toUpperCase() : 'P'; }
+function postCode(s){ const m = String(s.post || '').match(/[pv]\s?\d+/i); return m ? m[0].replace(/\s+/, '').toUpperCase() : 'P'; }
 function weekCode(weekLabel){ const m = String(weekLabel || '').match(/([A-Za-z]{3})[a-z]*\.?\s*(\d{1,2})/); return m ? (m[1].toUpperCase() + String(m[2]).padStart(2, '0')) : ''; }
 function shotLabel(s, wc){
   const core = [dayCode(s), postCode(s)];
   if(s.beat) core.push('b' + s.beat);
-  const slug = slug16(s.action || s.framing || 'shot');
+  const slug = slug16(String(s.action || '').replace(/^\s*(you(r|'re)?|the)\s+/i, '') || s.framing || 'shot');   // directions are second-person; keep the verb
   return (wc ? wc + '_' : '') + core.join('-') + (slug ? '_' + slug : '');
 }
 
-function buildCallSheetMd(weekLabel, lightNote, blocks, summary, master){
+function buildCallSheetMd(weekLabel, lightNote, blocks, summary, master, extra){
   const wc = weekCode(weekLabel);
+  const posts = (extra && extra.posts) || [], setupNote = txt(extra && extra.setupNote);
+  const stats = postStats(blocks.flatMap(b => b.shots));
   let s = '# ' + (weekLabel || 'Shoot day') + '\n\n';
   if(lightNote) s += '> ' + lightNote + '\n\n';
+  if(setupNote) s += '> Setup: ' + setupNote + '\n\n';
   s += '**' + summary.shots + ' shots · ' + summary.locations + ' locations · ' + summary.outfits + ' outfits · ' +
        summary.golden + ' golden-hour · ' + summary.night + ' night · ~' + fmtMinutes(summary.estimateMin) + '**\n';
+  if(posts.length){
+    s += '\n## This week\'s posts\n';
+    for(const p of posts){
+      const len = num(p.length) ? fmtClock(p.length) : '';
+      s += '- **' + postName({ post: p.post, postTitle: p.title }) + '**' + [txt(p.day) && ' — posts ' + txt(p.day), len && ' · ' + len].filter(Boolean).join('') +
+           (p.shoot === false ? ' — NOT ON THIS SHOOT' + (txt(p.note) ? ' (' + txt(p.note) + ')' : '') : '') +
+           (txt(p.concept) ? '\n  - ' + txt(p.concept) : '') + '\n';
+    }
+  }
   for(const b of blocks){
     s += '\n## ' + b.title + (b.constraint ? '  ⚑ ' + b.window : '  (' + b.window + ')') + '\n';
     for(const sh of b.shots){
-      const bits = [];
-      if((sh.wardrobe || '').trim()) bits.push('wardrobe: ' + sh.wardrobe.trim());
-      if((sh.props || []).length) bits.push('props: ' + sh.props.join(', '));
-      if((sh.onScreenText || '').trim()) bits.push('text: “' + sh.onScreenText.trim() + '”');
-      const meta = shotMeta(sh);   // "close-up · 2s"
-      s += '- [ ] `' + shotLabel(sh, wc) + '` **' + shotSource(sh) + '**' + (meta ? ' (' + meta + ')' : '') + ' ' + (sh.action || '').trim() +
-           (bits.length ? ' — ' + bits.join(' — ') : '') + '\n';
+      s += '\n- [ ] `' + shotLabel(sh, wc) + '` **' + shotSource(sh) + (txt(sh.postTitle) ? ' — ' + txt(sh.postTitle) : '') + '**\n';
+      s += '  - ' + shotTimeline(sh, stats) + '\n';
+      for(const f of shotFields(sh)){
+        const v = f.v.replace(/\n+/g, ' / ');
+        s += '  - ' + f.k + (f.how ? ' (' + f.how + ')' : '') + ': ' + (f.t ? f.t + ' ' : '') + v + '\n';
+      }
     }
   }
   s += '\n## Wardrobe — pack once\n';
@@ -336,7 +432,8 @@ function sortShots(shots, priority){
 }
 function buildCsv(shots, priority, weekLabel){
   const wc = weekCode(weekLabel);
-  const cols = ['label','day','post','beat','duration','location','light','framing','action','wardrobe','props','onScreenText','audioCue'];
+  const cols = ['label','day','post','beat','duration','location','light','framing','action','wardrobe','props','onScreenText','audioCue',
+                'postTitle','start','end','postLength','camera','line','lineType','note','textTime'];
   const head = cols.join(',');
   const rows = sortShots(shots, priority || 'location').map(s =>
     cols.map(c => csvCell(c === 'label' ? shotLabel(s, wc) : c === 'props' ? (s.props || []).join('; ') : s[c])).join(','));
@@ -402,18 +499,31 @@ async function loadPdfFile(file){
 /* ============================== Parse =============================== */
 function parseSchema(){
   return {
-    type: 'object', additionalProperties: false, required: ['weekLabel', 'lightNote', 'shots'],
+    type: 'object', additionalProperties: false, required: ['weekLabel', 'lightNote', 'setupNote', 'posts', 'shots'],
     properties: {
       weekLabel: { type: 'string' },
       lightNote: { type: 'string' },
+      setupNote: { type: 'string' },
+      posts: { type: 'array', items: {
+        type: 'object', additionalProperties: false,
+        required: ['day', 'post', 'title', 'length', 'concept', 'shoot', 'note'],
+        properties: {
+          day: { type: 'string' }, post: { type: 'string' }, title: { type: 'string' }, length: { type: 'number' },
+          concept: { type: 'string' }, shoot: { type: 'boolean' }, note: { type: 'string' },
+        },
+      } },
       shots: { type: 'array', items: {
         type: 'object', additionalProperties: false,
-        required: ['day', 'post', 'beat', 'duration', 'location', 'light', 'framing', 'action', 'wardrobe', 'props', 'onScreenText', 'audioCue'],
+        required: ['day', 'post', 'postTitle', 'postLength', 'beat', 'start', 'end', 'duration', 'location', 'light', 'framing', 'camera',
+                   'action', 'line', 'lineType', 'note', 'wardrobe', 'props', 'onScreenText', 'textTime', 'audioCue'],
         properties: {
-          day: { type: 'string' }, post: { type: 'string' }, beat: { type: 'integer' }, duration: { type: 'number' },
+          day: { type: 'string' }, post: { type: 'string' }, postTitle: { type: 'string' }, postLength: { type: 'number' },
+          beat: { type: 'integer' }, start: { type: 'number' }, end: { type: 'number' }, duration: { type: 'number' },
           location: { type: 'string', enum: LOCATIONS }, light: { type: 'string', enum: LIGHTS },
-          framing: { type: 'string' }, action: { type: 'string' }, wardrobe: { type: 'string' },
-          props: { type: 'array', items: { type: 'string' } }, onScreenText: { type: 'string' }, audioCue: { type: 'string' },
+          framing: { type: 'string' }, camera: { type: 'string' }, action: { type: 'string' },
+          line: { type: 'string' }, lineType: { type: 'string', enum: LINE_TYPES }, note: { type: 'string' },
+          wardrobe: { type: 'string' }, props: { type: 'array', items: { type: 'string' } },
+          onScreenText: { type: 'string' }, textTime: { type: 'string' }, audioCue: { type: 'string' },
         },
       } },
     },
@@ -422,18 +532,46 @@ function parseSchema(){
 const PARSE_PROMPT =
   'You are turning a full week of MOSUN TikTok scripts into a flat shoot-shot list for a batched shoot day. ' +
   'MOSUN is a Lagos-born, London/Taipei-based music artist; scripts are organized by Day → POST → a shot-by-shot ' +
-  'FULL SCRIPT with [a-bs] timecodes, plus SOUND, TEXT OVERLAYS, and a "where". Emit one shot per timecoded beat.\n' +
-  'For each shot: day = e.g. "Mon · Jun 8"; post = short id like "P1" (+ a few words of the post title if helpful); ' +
-  'beat = its order in that post (1,2,3…); duration = the shot LENGTH in seconds from the [a-bs] marker (estimate ~2s if absent). ' +
+  'FULL SCRIPT with [a-bs] timecodes, plus SOUND, TEXT OVERLAYS, and a "where" — or as numbered VIDEOs, each with a shot table ' +
+  '(Shot / In frame / Camera / Length like "7–11s"), timed on-screen text, an Audio note, and sometimes a word-for-word voice-over script. ' +
+  'Emit one shot per timecoded beat / table row.\n' +
+  'THE GOLDEN RULE: on the shoot day these shots are shuffled into location blocks, separated from their neighbours, and read WITHOUT the ' +
+  'script in hand. Every shot must stand completely alone — never write "same shot continues", "as above", "the twist", or refer to ' +
+  'another shot; restate who/what/where in full. Do not summarize away detail the script gives: keep every concrete instruction.\n' +
+  'posts = one entry per post/video in the week, in order: day = the day it POSTS, e.g. "Sat · Sep 5"; post = short id exactly as the script ' +
+  'numbers it ("V2" for VIDEO 2, "P1" for POST 1); title = slot + format in a few words (e.g. "TREND — saxophone doom cue"); ' +
+  'length = total video length in seconds; concept = the script\'s one-line concept, verbatim; shoot = false when the post needs NO filming ' +
+  '(edit-only, pulled from existing footage) else true; note = why it is not being shot (empty otherwise). ' +
+  'Emit NO shots for a post with shoot = false.\n' +
+  'For each shot: day, post, postTitle, postLength = copied exactly from its posts entry; ' +
+  'beat = its order in that post (1,2,3…); start / end = where this shot lands in the finished post, in seconds from the timecode ' +
+  '("7–11s" → start 7, end 11); duration = end − start (estimate ~2s and sequential start/end if the script gives no timecode). ' +
   'location = map the scene to one of the allowed values (a Taipei lane/street = taipei-street; the apartment/home studio = studio-apartment; ' +
   'rooftop; café; transit = train/scooter/MRT; stage; gear-closeup = hands on synth/keys/interface; else other). ' +
   'light = infer from the time/scene (dawn or ~6:30am or sunset = golden-hour; just-after-sunset = blue-hour; night out/after dark = night; ' +
   'midday exterior = day; interior = indoor). framing = the shot SIZE/type — choose the most fitting: wide, medium, close-up, ' +
   'extreme close-up, macro (tight detail, e.g. fingers on keys / a fader), POV, low-angle, high-angle, overhead, handheld, static, tracking ' +
-  '(append a movement/angle only if essential, e.g. "close-up handheld"). action = one concise line of what happens. ' +
+  '(append a movement/angle only if essential, e.g. "close-up handheld"). ' +
+  'camera = the camera setup as the script gives it, with any lettered position spelled out ("Position B — close on hands"), plus ' +
+  'movement (static / slow push in / handheld); empty if the script gives none. ' +
+  'action = exactly what MOSUN does in this shot, as direct second-person instructions ("You sit at the desk, headphones on…"), ' +
+  'as many sentences as the script supports: where you are, what you do, in what order, the expression/energy, and where you look. ' +
+  'line = the exact words delivered during this shot, verbatim from the script, line breaks kept — spoken to camera, lip-synced/sung ' +
+  '(name the song section if the script gives no lyric, e.g. "OVDZ — biggest vocal phrase"), or the part of the voice-over that plays over ' +
+  'this shot (split the voice-over across the post\'s shots by timing, in order, every word used once). Empty if the shot is silent action. ' +
+  'lineType = how that line is delivered (none if line is empty). ' +
+  'VOICE-OVER POSTS: also emit ONE extra item for recording it — beat 0, start 0, end 0, duration 0, framing "audio only", ' +
+  'lineType voice-over, action = how to record it (mic, tone, pace, what plays underneath), line = the FULL voice-over script word for word, ' +
+  'location/light = where it is recorded. ' +
+  'note = the direction that makes or breaks the shot, from anywhere in the script (hook notes, audio notes, checklist): e.g. "hold, do not cut", ' +
+  '"HARD CUT in from the previous shot — no fade", "let exposure settle, don\'t correct it", "last frame must loop into the first". Empty if none. ' +
   'wardrobe = INFER a plausible outfit from the vibe even if unstated (it is editable); props = INFER visible objects to bring (array, can be empty). ' +
-  'onScreenText = the literal overlay text for that beat (empty if none); audioCue = the SOUND note. ' +
+  'onScreenText = the literal overlay text that appears during this shot (assign each overlay to the shot in which it starts; empty if none); ' +
+  'textTime = when that overlay shows, e.g. "0:04–0:07" (empty if none); ' +
+  'audioCue = what is heard under THIS shot specifically (which sound/section, what it is doing — creeping in, cutting out, played live). ' +
   'weekLabel = the week header (e.g. "Week of Jun 8–14, 2026"). ' +
+  'setupNote = the script\'s overall session setup in a sentence or two — the corner/room, camera positions A/B/C/D, what to bring, ' +
+  'total session time (empty if the script gives none). ' +
   'lightNote = a one-line estimate of that week\'s Taipei golden-hour windows (≈ dawn and dusk clock times) — note it is approximate. ' +
   'Return only the structured result.';
 
@@ -445,9 +583,11 @@ async function parseWeek(){
   const btn = $('parseBtn'); btn.classList.add('busy'); btn.disabled = true;
   setMsg('Parsing the week with Claude…');
   try{
-    const out = await claudeJSON(PARSE_PROMPT + '\n\nSCRIPTS:\n' + text, parseSchema(), 16000);
+    const out = await claudeJSON(PARSE_PROMPT + '\n\nSCRIPTS:\n' + text, parseSchema(), 32000);
     state.weekLabel = out.weekLabel || 'Shoot day';
     state.lightNote = out.lightNote || '';
+    state.setupNote = out.setupNote || '';
+    state.posts = (out.posts || []);
     state.shots = (out.shots || []);
     render();
     setMsg('Parsed ' + state.shots.length + ' shots'); setTimeout(() => setMsg(''), 2400);
@@ -456,17 +596,16 @@ async function parseWeek(){
 }
 
 /* ============================== Render ============================== */
-const state = { weekLabel: '', lightNote: '', shots: [], blocks: [] };
+const state = { weekLabel: '', lightNote: '', setupNote: '', posts: [], shots: [], blocks: [] };
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-// compact source chip for the UI: "Sat · Jun 13 · P2" (full post title can be long)
-function shortPost(p){ p = String(p || ''); const m = p.match(/P\s?\d+/i); return m ? m[0].replace(/\s+/, '') : p.slice(0, 8); }
-function srcChip(s){ return [s.day, s.post ? shortPost(s.post) : ''].filter(Boolean).join(' · ') || '—'; }
 
 function render(){
   state.blocks = clusterShots(state.shots, $('priority').value);
   $('sheet').classList.remove('hidden');
   $('weekLabel').textContent = state.weekLabel;
   $('lightNote').innerHTML = state.lightNote ? '<b>Light:</b> ' + esc(state.lightNote) : '';
+  $('setupNote').innerHTML = state.setupNote ? '<b>Setup</b> &nbsp;' + esc(state.setupNote) : '';
+  renderPosts();
   const sm = summarize(state.shots);
   $('summary').innerHTML =
     stat(sm.shots, 'shots') + stat(sm.locations, 'locations') + stat(sm.outfits, 'outfits') +
@@ -476,26 +615,39 @@ function render(){
 }
 function stat(num, cap, acc){ return '<div class="stat"><div class="num' + (acc ? ' acc' : '') + '">' + esc(num) + '</div><div class="cap">' + cap + '</div></div>'; }
 
+function renderPosts(){
+  $('postsLabel').classList.toggle('hidden', !state.posts.length);
+  $('posts').innerHTML = state.posts.map(p => {
+    const off = p.shoot === false;
+    const meta = [txt(p.day) && 'posts ' + txt(p.day), num(p.length) ? fmtClock(p.length) : '',
+                  off ? 'not on this shoot' + (txt(p.note) ? ' — ' + txt(p.note) : '') : ''].filter(Boolean).join(' · ');
+    return '<div class="p' + (off ? ' off' : '') + '"><span class="id">' + esc(shortPost(p.post)) + '</span>' +
+      '<span class="ti">' + esc(txt(p.title)) + (meta ? ' <span class="m">— ' + esc(meta) + '</span>' : '') + '</span>' +
+      '<span class="co">' + esc(txt(p.concept)) + '</span></div>';
+  }).join('');
+}
+
 function renderBlocks(){
   const wrap = $('blocks'); wrap.innerHTML = '';
   const wc = weekCode(state.weekLabel);
+  const stats = postStats(state.shots);
   state.blocks.forEach((b, bi) => {
     const div = document.createElement('div');
     div.className = 'block' + (b.constraint ? ' constraint' : '');
     div.draggable = true; div.dataset.bi = bi;
     const rows = b.shots.map(sh => {
-      const sub = [];
-      if((sh.wardrobe || '').trim()) sub.push('<b>fit:</b> ' + esc(sh.wardrobe.trim()));
-      if((sh.props || []).length) sub.push('<b>props:</b> ' + esc(sh.props.join(', ')));
-      const meta = shotMeta(sh);
+      const fields = shotFields(sh).map(f =>
+        '<span class="fk">' + esc(f.k) + '</span>' +
+        '<span class="fv' + (f.cls ? ' ' + f.cls : '') + '">' +
+          (f.how ? '<span class="how">' + esc(f.how) + '</span>' : '') +
+          (f.t ? '<span class="t">' + esc(f.t) + '</span> &nbsp;' : '') + esc(f.v) + '</span>').join('');
       return '<label class="shot"><input type="checkbox">' +
-        '<span class="src">' + esc(srcChip(sh)) + '</span>' +
         '<span class="det">' +
+        '<span class="phead"><span class="pname">' + esc(postName(sh)) + '</span>' +
+          (txt(sh.day) ? '<span class="pday">posts ' + esc(txt(sh.day)) + '</span>' : '') + '</span>' +
+        '<span class="tline">' + esc(shotTimeline(sh, stats)) + '</span>' +
         '<span class="flabel" title="name the recorded clip this">' + esc(shotLabel(sh, wc)) + '</span>' +
-        (meta ? '<span class="shotmeta">' + esc(meta) + '</span>' : '') +
-        '<span class="act">' + esc(sh.action || '') + '</span>' +
-        (sub.length ? '<span class="sub">' + sub.join(' &nbsp;·&nbsp; ') + '</span>' : '') +
-        ((sh.onScreenText || '').trim() ? '<span class="ost">“' + esc(sh.onScreenText.trim()) + '”</span>' : '') +
+        '<span class="fields">' + fields + '</span>' +
         '</span></label>';
     }).join('');
     div.innerHTML =
@@ -550,7 +702,7 @@ $('keyIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDe
 $('mdBtn').addEventListener('click', () => {
   const sm = summarize(state.shots), m = wardrobePropsMaster(state.shots);
   const blocks = clusterShots(state.shots, $('priority').value);   // downloads follow the Group by selector
-  download('shoot-day.md', buildCallSheetMd(state.weekLabel, state.lightNote, blocks, sm, m), 'text/markdown');
+  download('shoot-day.md', buildCallSheetMd(state.weekLabel, state.lightNote, blocks, sm, m, { posts: state.posts, setupNote: state.setupNote }), 'text/markdown');
 });
 $('csvBtn').addEventListener('click', () => download('shoot-shots.csv', buildCsv(state.shots, $('priority').value, state.weekLabel), 'text/csv'));
 
