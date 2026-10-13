@@ -8,6 +8,13 @@ video caption pulls from here. Default theme is **dark** (ink ground, cream text
 
 ---
 
+## Design rules
+
+- **Text size follows the Fibonacci sequence:** 8 · 13 · 21 · 34 · 55 · 89 · 144 px. Type sizes come from the sequence only.
+- **The composition uses a Fibonacci spiral grid** for element proportions and placements.
+
+---
+
 ## Colors (exact hex)
 
 | Token | Hex | Use |
